@@ -199,6 +199,25 @@ describe('ExploreScreen', () => {
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
   });
 
+  it('clears the error message once the input diverges from the submitted org', async () => {
+    useOrgRepos.mockReturnValue(
+      mockResult({ status: 'error', error: new NotFoundError() }),
+    );
+    await renderScreen();
+    await submitOrg('does-not-exist');
+    expect(await screen.findByText('Organization not found')).toBeOnTheScreen();
+
+    const input = await screen.findByLabelText('Organization name');
+    await userEvent.type(input, 'x');
+
+    expect(screen.queryByText('Organization not found')).toBeNull();
+    expect(
+      await screen.findByText(
+        'Search a GitHub organization to see its repositories',
+      ),
+    ).toBeOnTheScreen();
+  });
+
   it('shows "No connection" for a NetworkError', async () => {
     useOrgRepos.mockReturnValue(
       mockResult({ status: 'error', error: new NetworkError() }),

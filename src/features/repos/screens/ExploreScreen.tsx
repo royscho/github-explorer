@@ -47,6 +47,10 @@ export function ExploreScreen(): React.JSX.Element {
     isRefetching,
   } = useOrgRepos(org);
 
+  // While the input has drifted from the last submitted org (the user is typing toward a new
+  // search but hasn't pressed Search yet), an error for the *previous* org shouldn't linger.
+  const isEditingNewOrg = orgInput.trim() !== org;
+
   function handleSubmit(): void {
     const trimmed = orgInput.trim();
     if (trimmed === org) {
@@ -130,6 +134,11 @@ export function ExploreScreen(): React.JSX.Element {
     // A pagination or refresh failure keeps the already-loaded list visible (§19: don't throw away
     // data a 60-req/hour budget already paid for) — only a first-load failure is full-screen.
     if (status === 'error' && repos.length === 0 && error) {
+      if (isEditingNewOrg) {
+        return (
+          <EmptyView message="Search a GitHub organization to see its repositories" />
+        );
+      }
       if (error instanceof RateLimitError) {
         const canRetry = Date.now() >= error.resetAt.getTime();
         return (
