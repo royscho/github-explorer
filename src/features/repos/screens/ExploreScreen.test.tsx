@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -49,6 +50,7 @@ jest.mock('@shopify/flash-list', () => {
       renderItem,
       keyExtractor,
       ListFooterComponent,
+      ListEmptyComponent,
       onEndReached,
       onRefresh,
       refreshing,
@@ -57,6 +59,7 @@ jest.mock('@shopify/flash-list', () => {
       renderItem: (info: { item: unknown; index: number }) => React.ReactNode;
       keyExtractor: (item: unknown, index: number) => string;
       ListFooterComponent?: React.ReactNode;
+      ListEmptyComponent?: React.ReactNode;
       onEndReached?: () => void;
       onRefresh?: () => void;
       refreshing?: boolean;
@@ -64,13 +67,15 @@ jest.mock('@shopify/flash-list', () => {
       ReactActual.createElement(
         RN.View,
         { testID: 'repo-list', onEndReached, onRefresh, refreshing },
-        data.map((item, index) =>
-          ReactActual.createElement(
-            ReactActual.Fragment,
-            { key: keyExtractor(item, index) },
-            renderItem({ item, index }),
-          ),
-        ),
+        data.length === 0
+          ? ListEmptyComponent
+          : data.map((item, index) =>
+              ReactActual.createElement(
+                ReactActual.Fragment,
+                { key: keyExtractor(item, index) },
+                renderItem({ item, index }),
+              ),
+            ),
         ListFooterComponent,
       ),
   };
@@ -132,6 +137,10 @@ describe('ExploreScreen', () => {
     useOrgRepos.mockReturnValue(mockResult({ status: 'pending' }));
     usePrefetchRepoDetails.mockReturnValue(jest.fn());
     mockNavigate.mockReset();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('shows the input and no list before an org is submitted', async () => {
@@ -456,5 +465,208 @@ describe('ExploreScreen', () => {
     const button = await screen.findByRole('button', { name: 'Search' });
     await userEvent.press(button);
     expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('never searches while typing, however long it waits, without an explicit submit', async () => {
+    jest.useFakeTimers();
+    await renderScreen();
+    const input = await screen.findByLabelText('Organization name');
+
+    await act(async () => {
+      await fireEvent.changeText(input, 'facebook');
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(60_000);
+    });
+
+    expect(useOrgRepos).toHaveBeenLastCalledWith('');
+  });
+
+  it('does not search and shows a validation message when Search is pressed below the minimum length', async () => {
+    await renderScreen();
+    const input = await screen.findByLabelText('Organization name');
+    await userEvent.type(input, 'f');
+    const button = await screen.findByRole('button', { name: 'Search' });
+    await userEvent.press(button);
+
+    expect(useOrgRepos).toHaveBeenLastCalledWith('');
+    expect(
+      await screen.findByText('Enter at least 2 characters'),
+    ).toBeOnTheScreen();
+  });
+
+  it('does not search and shows a validation message on keyboard submit below the minimum length', async () => {
+    await renderScreen();
+    const input = await screen.findByLabelText('Organization name');
+    await userEvent.type(input, 'f');
+    await fireEvent(input, 'submitEditing');
+
+    expect(useOrgRepos).toHaveBeenLastCalledWith('');
+    expect(
+      await screen.findByText('Enter at least 2 characters'),
+    ).toBeOnTheScreen();
+  });
+
+  it('does not show a validation message before any submit is attempted', async () => {
+    await renderScreen();
+    expect(screen.queryByText('Enter at least 2 characters')).toBeNull();
+  });
+
+  it('clears the validation message once the user edits the input again', async () => {
+    await renderScreen();
+    const input = await screen.findByLabelText('Organization name');
+    await userEvent.type(input, 'f');
+    const button = await screen.findByRole('button', { name: 'Search' });
+    await userEvent.press(button);
+    expect(
+      await screen.findByText('Enter at least 2 characters'),
+    ).toBeOnTheScreen();
+
+    await userEvent.type(input, 'b');
+
+    expect(screen.queryByText('Enter at least 2 characters')).toBeNull();
+  });
+
+  it('searches on keyboard submit at exactly the minimum length (2 characters)', async () => {
+    await renderScreen();
+    const input = await screen.findByLabelText('Organization name');
+    await userEvent.type(input, 'fb');
+    await fireEvent(input, 'submitEditing');
+
+    expect(useOrgRepos).toHaveBeenLastCalledWith('fb');
+    expect(screen.queryByText('Enter at least 2 characters')).toBeNull();
+  });
+
+  it('shows the name filter input once repos have loaded', async () => {
+    useOrgRepos.mockReturnValue(
+      mockResult({ status: 'success', repos: [makeRepo(1), makeRepo(2)] }),
+    );
+    await renderScreen();
+    await submitOrg('facebook');
+    expect(
+      await screen.findByLabelText('Filter repositories by name'),
+    ).toBeOnTheScreen();
+  });
+
+  it('does not show the name filter input before any repos are loaded', async () => {
+    await renderScreen();
+    expect(screen.queryByLabelText('Filter repositories by name')).toBeNull();
+  });
+
+  it('does not show the name filter input when the org has no repos', async () => {
+    useOrgRepos.mockReturnValue(mockResult({ status: 'success', repos: [] }));
+    await renderScreen();
+    await submitOrg('empty-org');
+    expect(screen.queryByLabelText('Filter repositories by name')).toBeNull();
+  });
+
+  it('keeps the name filter input visible when a page/refresh error occurs', async () => {
+    useOrgRepos.mockReturnValue(
+      mockResult({
+        status: 'error',
+        error: new RateLimitError(new Date(Date.now() + 100000)),
+        repos: [makeRepo(1), makeRepo(2)],
+      }),
+    );
+    await renderScreen();
+    await submitOrg('facebook');
+    expect(
+      await screen.findByLabelText('Filter repositories by name'),
+    ).toBeOnTheScreen();
+  });
+
+  it('clears the name filter once a new org is submitted', async () => {
+    useOrgRepos.mockReturnValue(
+      mockResult({ status: 'success', repos: [makeRepo(1), makeRepo(2)] }),
+    );
+    await renderScreen();
+    await submitOrg('facebook');
+
+    const filterInput = await screen.findByLabelText(
+      'Filter repositories by name',
+    );
+    await userEvent.type(filterInput, 'repo-1');
+    expect(filterInput.props.value).toBe('repo-1');
+
+    const input = await screen.findByLabelText('Organization name');
+    await userEvent.clear(input);
+    await userEvent.type(input, 'google');
+    const button = await screen.findByRole('button', { name: 'Search' });
+    await userEvent.press(button);
+
+    const filterInputAfterNewSearch = await screen.findByLabelText(
+      'Filter repositories by name',
+    );
+    expect(filterInputAfterNewSearch.props.value).toBe('');
+  });
+
+  it('filters the visible list by name after the filter debounce delay', async () => {
+    useOrgRepos.mockReturnValue(
+      mockResult({ status: 'success', repos: [makeRepo(1), makeRepo(2)] }),
+    );
+    await renderScreen();
+    await submitOrg('facebook');
+
+    jest.useFakeTimers();
+    const filterInput = await screen.findByLabelText(
+      'Filter repositories by name',
+    );
+    await act(async () => {
+      await fireEvent.changeText(filterInput, 'repo-1');
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(250);
+    });
+
+    expect(screen.queryByText('repo-1')).toBeOnTheScreen();
+    expect(screen.queryByText('repo-2')).toBeNull();
+  });
+
+  it('does not show the "no repositories match" state before the filter debounce elapses', async () => {
+    useOrgRepos.mockReturnValue(
+      mockResult({ status: 'success', repos: [makeRepo(1), makeRepo(2)] }),
+    );
+    await renderScreen();
+    await submitOrg('facebook');
+
+    jest.useFakeTimers();
+    const filterInput = await screen.findByLabelText(
+      'Filter repositories by name',
+    );
+    await act(async () => {
+      await fireEvent.changeText(filterInput, 'nonexistent');
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(249);
+    });
+
+    expect(
+      screen.queryByText('No repositories match "nonexistent"'),
+    ).toBeNull();
+    expect(screen.queryByText('repo-1')).toBeOnTheScreen();
+    expect(screen.queryByText('repo-2')).toBeOnTheScreen();
+  });
+
+  it('shows a "no repositories match" empty state when the filter matches nothing', async () => {
+    useOrgRepos.mockReturnValue(
+      mockResult({ status: 'success', repos: [makeRepo(1), makeRepo(2)] }),
+    );
+    await renderScreen();
+    await submitOrg('facebook');
+
+    jest.useFakeTimers();
+    const filterInput = await screen.findByLabelText(
+      'Filter repositories by name',
+    );
+    await act(async () => {
+      await fireEvent.changeText(filterInput, 'nonexistent');
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(250);
+    });
+
+    expect(
+      await screen.findByText('No repositories match "nonexistent"'),
+    ).toBeOnTheScreen();
   });
 });

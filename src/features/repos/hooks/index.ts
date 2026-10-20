@@ -10,3 +10,4 @@ export { useRepoCardSkeletonStyles } from './useRepoCardSkeletonStyles';
 export { useRepoDetailsSkeletonStyles } from './useRepoDetailsSkeletonStyles';
 export { useRepoStatsStyles } from './useRepoStatsStyles';
 export { useOrgSearchInputStyles } from './useOrgSearchInputStyles';
+export { useNameFilterInputStyles } from './useNameFilterInputStyles';

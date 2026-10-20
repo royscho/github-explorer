@@ -160,3 +160,75 @@ One entry per milestone, written by `/gen-step` (step 7). Source for `AI_USAGE.m
   intuition, and did get wrong on the first pass in two different places (the error-precedence
   check and the refresh-spinner) — worth remembering for any future `placeholderData` use in this
   codebase.
+
+## 05 — Search & filter (2026-10-20)
+
+- Model(s): implementer Claude Sonnet 5 (Claude Code), reviewer code-reviewer (opus)
+- AI generated: step plan (`docs/steps/05-search-filter.md`), the generic `useDebounce<T>` hook
+  (`shared/hooks`), a `'danger'` color option on the shared `Text` component, `NameFilterInput` +
+  its styles hook, `filterReposByName` (`ExploreScreen.utils.ts`), and `ExploreScreen`'s org-search
+  submit handling / client-side name filter wiring (DESIGN §7), plus every test for all of it.
+- Changed / rejected by me: mid-step, after the initial implementation and review pass were both
+  done (debounced ~500 ms auto-search in addition to the Search button, matching the DESIGN text
+  as originally written), I changed the requirement in two rounds: first, that the org query
+  should fire **only** on an explicit Search-button press or keyboard submit, never while typing
+  — which removed the auto-search debounce effect (and the `useDebounce` call driving it) entirely
+  from `ExploreScreen`; then, that a too-short submission should require 2 characters (not the 1 I
+  first gave as the minimum) and show a visible "Enter at least 2 characters" message rather than
+  silently no-op. `docs/DESIGN.md` §7 was updated in the same PR to match both changes, per
+  `CLAUDE.md`'s rule to update the doc alongside any deviation. The name-filter half of §7 was
+  unaffected throughout.
+- Reviewer findings (from the review pass against the original, debounced-auto-search version):
+  fixed 10, documented-not-fixed 1, rejected 0.
+  - Fixed: `showNameFilter` was gated on `status === 'success'`, which hid (and orphaned) the
+    filter during a page/refresh error even though filtering kept applying to the still-visible
+    list — changed to `repos.length > 0`. The name filter wasn't reset when a new org was
+    submitted, so a filter typed against one org could silently hide repos in the next org's
+    results — added a reset effect keyed on `org`. The "no matches" state replaced the whole
+    `FlashList` with a bare `EmptyView`, losing pull-to-refresh and the pagination footer — switched
+    to `FlashList`'s `ListEmptyComponent`. Also fixed: a weak `useDebounce` unmount test that would
+    have passed even without real cleanup, a duplicate-id trap in a test fixture,
+    `NameFilterInput`'s `returnKeyType="search"` implying a submit action it doesn't have, and a
+    weak keystroke-count assertion in `NameFilterInput.test.tsx`. (The reviewer's regression test
+    for a debounce-effect snap-back bug, and two other test cases it flagged as promised-but-
+    missing, were superseded by the mid-step behavior change — see below.)
+  - Documented, not fixed: a narrow filter can make `FlashList` fire `onEndReached` on layout alone
+    (independent of scrolling), auto-paginating through an org while idle. Pre-existing risk (an
+    unfiltered short first page has the same property), not introduced by this step, and a proper
+    fix means distinguishing layout- from scroll-triggered `onEndReached` — out of scope here;
+    recorded as a known trade-off in the step doc's Follow-ups.
+- Validation: lint / typecheck / tests (225 tests) all pass. No manual device/simulator run this
+  step (text-input/submit behavior only; no new visual surface beyond the existing input style and
+  one new inline validation message).
+- Where AI was useful / risky: caught, by itself, during the first implementation (before the
+  review pass, and before the requirement changed) that an org-search debounce effect must depend
+  only on the debounced value, not on `org` too — depending on both made it re-run right after
+  `handleSubmit`'s immediate `setOrg` and snap `org` back to the still-stale debounced value
+  (surfaced as two existing tests failing, not a new one — a useful reminder that a regression can
+  hide behind unrelated-looking test names). That whole mechanism was later removed once the
+  requirement changed to explicit-trigger-only, so the bug no longer applies to the shipped code —
+  but the general lesson is worth keeping for next time: any "debounce a value, but let an explicit
+  action bypass the wait" pattern needs the debounce effect to react only to the debounced value
+  itself, never to state the explicit action also writes. Separately, a plain (non-`.changeText`/
+  `.press`) RNTL `fireEvent(...)` call returns a `Promise` that must be awaited before asserting on
+  a re-render — an unawaited keyboard-submit `fireEvent` produced a flaky-looking assertion
+  failure (read a stale pre-submit render) until awaited.
+
+### Follow-up: clear buttons (same day, same branch)
+
+- AI generated, by request, after the milestone-5 commit above: a clear ("×") button on both
+  `OrgSearchInput` and `NameFilterInput` — an absolutely-positioned `Pressable`
+  (`Ionicons` `close-circle`) shown only while the field has text, clearing it on press. Used a
+  custom cross-platform button rather than RN's `clearButtonMode`, which is iOS-only. Covered by
+  new tests (hidden when empty, shown + clears on press, for both components).
+- Also explored, then explicitly reverted by the user: moving the global `QueryCache.onError`
+  handler in `queryClient.ts` to log a 404 (`NotFoundError`) as `logger.warn` instead of
+  `logger.error`, since an org/repo 404 is a user-correctable "not found", not an app bug. The
+  user judged the fix's _location_ wrong (a global, per-query-type special case there also
+  silently downgrades 404s from unrelated queries, like `useRepoDetails`, where a 404 carries
+  different meaning) and asked to revert; both files were restored via `git restore` before
+  anything was committed. Recommended alternative, not yet implemented: tag the specific query
+  with React Query `meta` (e.g. `meta: { expectedNotFound: true }`) and have the global handler
+  read that flag, keeping the handler generic while letting each feature opt in to softer logging
+  for the 404s it actually expects.
+- Validation: lint / typecheck / tests (229 tests) all pass.

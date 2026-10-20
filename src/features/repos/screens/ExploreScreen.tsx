@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list';
 import { useNavigation } from '@react-navigation/native';
@@ -13,9 +13,15 @@ import {
   Text,
 } from '@shared/components';
 import { NotFoundError, RateLimitError } from '@shared/api';
+import { useDebounce } from '@shared/hooks';
 import { formatResetTime } from '@shared/utils';
 
-import { OrgSearchInput, RepoCard, RepoCardSkeleton } from '../components';
+import {
+  NameFilterInput,
+  OrgSearchInput,
+  RepoCard,
+  RepoCardSkeleton,
+} from '../components';
 import {
   useExploreScreenStyles,
   useOrgRepos,
@@ -23,7 +29,18 @@ import {
 } from '../hooks';
 import type { Repo, RepoDetailsRouteParams } from '../types';
 
-import { getErrorMessage, keyExtractor } from './ExploreScreen.utils';
+import {
+  filterReposByName,
+  getErrorMessage,
+  keyExtractor,
+} from './ExploreScreen.utils';
+
+// DESIGN §7: the org search only runs on an explicit Search (button or keyboard submit), never
+// while typing, and requires at least this many characters (a shorter submission shows a
+// validation message instead). The name filter is the opposite — it only ever runs client-side,
+// so it can debounce and fire on every keystroke.
+const MIN_ORG_LENGTH = 2;
+const NAME_FILTER_DEBOUNCE_MS = 250;
 
 function renderSkeleton(index: number): React.JSX.Element {
   return <RepoCardSkeleton key={index} />;
@@ -39,6 +56,10 @@ export function ExploreScreen(): React.JSX.Element {
   const prefetchRepoDetails = usePrefetchRepoDetails();
   const [orgInput, setOrgInput] = useState('');
   const [org, setOrg] = useState('');
+  const [nameFilter, setNameFilter] = useState('');
+  const [orgTooShort, setOrgTooShort] = useState(false);
+
+  const debouncedNameFilter = useDebounce(nameFilter, NAME_FILTER_DEBOUNCE_MS);
 
   const {
     repos,
@@ -52,17 +73,40 @@ export function ExploreScreen(): React.JSX.Element {
     isRefetching,
   } = useOrgRepos(org);
 
+  const filteredRepos = useMemo(
+    () => filterReposByName(repos, debouncedNameFilter),
+    [repos, debouncedNameFilter],
+  );
+
   // While the input has drifted from the last submitted org (the user is typing toward a new
   // search but hasn't pressed Search yet), an error for the *previous* org shouldn't linger.
   const isEditingNewOrg = orgInput.trim() !== org;
 
+  // A name filter is scoped to the org it was typed against — carrying it over to a freshly
+  // submitted org would silently hide repos the user never filtered.
+  useEffect(() => {
+    setNameFilter('');
+  }, [org]);
+
+  // DESIGN §7: the org search is explicit-trigger-only (Search button or keyboard submit) — no
+  // network call while typing — and a sub-minimum-length submission shows a validation message
+  // instead of searching (or clearing) with it.
   function handleSubmit(): void {
     const trimmed = orgInput.trim();
+    if (trimmed.length < MIN_ORG_LENGTH) {
+      setOrgTooShort(true);
+      return;
+    }
     if (trimmed === org) {
       refetch();
       return;
     }
     setOrg(trimmed);
+  }
+
+  function handleOrgInputChange(value: string): void {
+    setOrgInput(value);
+    setOrgTooShort(false);
   }
 
   const onEndReached = useCallback(() => {
@@ -201,25 +245,46 @@ export function ExploreScreen(): React.JSX.Element {
 
     return (
       <FlashList<Repo>
-        data={repos}
+        data={filteredRepos}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         onEndReached={onEndReached}
         onEndReachedThreshold={0.5}
         ListFooterComponent={renderFooter()}
+        ListEmptyComponent={
+          <EmptyView
+            message={`No repositories match "${debouncedNameFilter.trim()}"`}
+          />
+        }
         refreshing={isRefetching}
         onRefresh={refetch}
       />
     );
   }
 
+  // Independent of `status`: a page/refresh error (handled above, in renderFooter/renderContent)
+  // keeps already-loaded repos visible, and the filter should stay usable over them too.
+  const showNameFilter = repos.length > 0;
+
   return (
     <Screen>
       <OrgSearchInput
         value={orgInput}
-        onChangeText={setOrgInput}
+        onChangeText={handleOrgInputChange}
         onSubmit={handleSubmit}
       />
+      {orgTooShort && (
+        <Text
+          variant="caption"
+          color="danger"
+          style={styles.orgInputErrorMessage}
+        >
+          {`Enter at least ${MIN_ORG_LENGTH} characters`}
+        </Text>
+      )}
+      {showNameFilter && (
+        <NameFilterInput value={nameFilter} onChangeText={setNameFilter} />
+      )}
       <View style={styles.container}>{renderContent()}</View>
     </Screen>
   );
