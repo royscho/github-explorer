@@ -15,3 +15,11 @@ export function getErrorMessage(error: GitHubApiError): string {
 export function keyExtractor(item: Repo): string {
   return String(item.id);
 }
+
+export function filterReposByName(repos: Repo[], query: string): Repo[] {
+  const trimmed = query.trim().toLowerCase();
+  if (!trimmed) {
+    return repos;
+  }
+  return repos.filter(repo => repo.name.toLowerCase().includes(trimmed));
+}

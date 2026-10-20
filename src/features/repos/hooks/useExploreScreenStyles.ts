@@ -17,4 +17,9 @@ export const useExploreScreenStyles = makeStyles(theme => ({
     color: theme.colors.accent,
     fontWeight: '600',
   },
+  orgInputErrorMessage: {
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+    marginTop: -theme.spacing.sm,
+  },
 }));

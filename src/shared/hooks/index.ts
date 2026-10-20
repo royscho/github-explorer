@@ -6,3 +6,4 @@ export { useLoadingViewStyles } from './useLoadingViewStyles';
 export { useListFooterLoaderStyles } from './useListFooterLoaderStyles';
 export { useErrorBoundaryStyles } from './useErrorBoundaryStyles';
 export { useComingSoonScreenStyles } from './useComingSoonScreenStyles';
+export { useDebounce } from './useDebounce';

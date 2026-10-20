@@ -5,9 +5,11 @@ import { useTextStyles } from '@shared/hooks';
 
 export type TextVariant = 'title' | 'body' | 'caption';
 
+export type TextColor = 'primary' | 'secondary' | 'danger';
+
 export interface TextProps extends RNTextProps {
   variant?: TextVariant;
-  color?: 'primary' | 'secondary';
+  color?: TextColor;
   children: React.ReactNode;
 }
 
@@ -20,14 +22,7 @@ export function Text({
 }: TextProps): React.JSX.Element {
   const styles = useTextStyles();
   return (
-    <RNText
-      style={[
-        styles[variant],
-        color === 'secondary' ? styles.secondary : styles.primary,
-        style,
-      ]}
-      {...rest}
-    >
+    <RNText style={[styles[variant], styles[color], style]} {...rest}>
       {children}
     </RNText>
   );

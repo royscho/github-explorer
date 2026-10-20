@@ -19,4 +19,7 @@ export const useTextStyles = makeStyles(theme => ({
   secondary: {
     color: theme.colors.textSecondary,
   },
+  danger: {
+    color: theme.colors.danger,
+  },
 }));
