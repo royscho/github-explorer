@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list';
 
 import {
   EmptyView,
@@ -12,7 +12,7 @@ import {
 } from '@shared/components';
 import { RateLimitError } from '@shared/api';
 
-import { OrgSearchInput } from '../components';
+import { OrgSearchInput, RepoCard, RepoCardSkeleton } from '../components';
 import { useExploreScreenStyles, useOrgRepos } from '../hooks';
 import type { Repo } from '../types';
 
@@ -20,9 +20,15 @@ import {
   formatResetTime,
   getErrorMessage,
   keyExtractor,
-  renderItem,
-  renderSkeleton,
 } from './ExploreScreen.utils';
+
+function renderItem({ item }: ListRenderItemInfo<Repo>): React.JSX.Element {
+  return <RepoCard repo={item} />;
+}
+
+function renderSkeleton(index: number): React.JSX.Element {
+  return <RepoCardSkeleton key={index} />;
+}
 
 export function ExploreScreen(): React.JSX.Element {
   const styles = useExploreScreenStyles();

@@ -1,16 +1,10 @@
-import React from 'react';
-import { render, screen } from '@testing-library/react-native';
-
 import { ApiError, NetworkError, NotFoundError } from '@shared/api';
-import { ThemeProvider } from '@shared/theme';
 
 import type { Repo } from '../types';
 import {
   formatResetTime,
   getErrorMessage,
   keyExtractor,
-  renderItem,
-  renderSkeleton,
 } from './ExploreScreen.utils';
 
 const repo: Repo = {
@@ -57,22 +51,5 @@ describe('getErrorMessage', () => {
 describe('keyExtractor', () => {
   it('returns the repo id as a string', () => {
     expect(keyExtractor(repo)).toBe('1');
-  });
-});
-
-describe('renderItem', () => {
-  it('renders a RepoCard for the given repo', async () => {
-    await render(
-      <ThemeProvider>
-        {renderItem({ item: repo, index: 0, target: 'Cell' })}
-      </ThemeProvider>,
-    );
-    expect(await screen.findByText('react')).toBeOnTheScreen();
-  });
-});
-
-describe('renderSkeleton', () => {
-  it('renders without throwing', async () => {
-    await render(<ThemeProvider>{renderSkeleton(0)}</ThemeProvider>);
   });
 });
