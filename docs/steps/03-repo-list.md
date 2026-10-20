@@ -259,3 +259,10 @@ None — §9's icon-package blank is being filled in, not changed from what it s
   partial mock (real `useExploreScreenStyles`, mocked `useOrgRepos` only) once `useExploreScreenStyles`
   joined that
   barrel, since an unqualified `jest.mock('../hooks')` auto-mocks every export.
+- **Every remaining `makeStyles(...)` call moved out of its component file** (requested by the
+  user), each into its own `use<Component>Styles.ts` hook: `shared/components/*` → new
+  `shared/hooks/` (already anticipated generically by DESIGN §3.2's folder list); `RepoCard`,
+  `RepoCardSkeleton`, `OrgSearchInput` → `features/repos/hooks/`, alongside `useOrgRepos`; `MainTabs`
+  → a new `app/hooks/` (DESIGN §3.2 updated to mention it — `app/` didn't previously list a `hooks/`
+  folder). No behavior change; component files now hold only JSX and local logic, no style
+  definitions.

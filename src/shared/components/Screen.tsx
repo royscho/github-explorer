@@ -1,7 +1,7 @@
 import React from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { makeStyles } from '@shared/theme';
+import { useScreenStyles } from '@shared/hooks';
 
 export interface ScreenProps {
   children: React.ReactNode;
@@ -18,17 +18,10 @@ export function Screen({
   children,
   edges = ['top', 'left', 'right'],
 }: ScreenProps): React.JSX.Element {
-  const styles = useStyles();
+  const styles = useScreenStyles();
   return (
     <SafeAreaView style={styles.container} edges={edges}>
       {children}
     </SafeAreaView>
   );
 }
-
-const useStyles = makeStyles(theme => ({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-}));

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 
-import { makeStyles } from '@shared/theme';
+import { useLoadingViewStyles } from '@shared/hooks';
 
 export interface LoadingViewProps {
   count?: number;
@@ -12,7 +12,7 @@ export function LoadingView({
   count = 6,
   renderItem,
 }: LoadingViewProps): React.JSX.Element {
-  const styles = useStyles();
+  const styles = useLoadingViewStyles();
   return (
     <View
       style={styles.container}
@@ -26,9 +26,3 @@ export function LoadingView({
     </View>
   );
 }
-
-const useStyles = makeStyles(() => ({
-  container: {
-    flex: 1,
-  },
-}));

@@ -4,8 +4,9 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import type { TextStyle } from 'react-native';
 
 import { ComingSoonScreen } from '@shared/components';
-import { makeStyles, useTheme } from '@shared/theme';
+import { useTheme } from '@shared/theme';
 import { ExploreScreen } from '@features/repos';
+import { useMainTabsStyles } from '@app/hooks';
 
 import type { MainTabParamList } from './types';
 
@@ -38,7 +39,7 @@ function SettingsTabIcon({ color, size }: TabIconProps): React.JSX.Element {
 
 export function MainTabs(): React.JSX.Element {
   const theme = useTheme();
-  const styles = useStyles();
+  const styles = useMainTabsStyles();
 
   return (
     <Tab.Navigator
@@ -67,10 +68,3 @@ export function MainTabs(): React.JSX.Element {
     </Tab.Navigator>
   );
 }
-
-const useStyles = makeStyles(theme => ({
-  tabBar: {
-    backgroundColor: theme.colors.surface,
-    borderTopColor: theme.colors.border,
-  },
-}));

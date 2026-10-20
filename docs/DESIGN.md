@@ -51,7 +51,7 @@ The user types a GitHub organization (`facebook`, `vercel`, …), browses its re
 
 ### 3.2 Folder structure
 
-- `src/app/` — `App.tsx`, providers (QueryClient, persister, SafeArea, Theme) and `navigation/` (RootStack, MainTabs, typed params, linking).
+- `src/app/` — `App.tsx`, providers (QueryClient, persister, SafeArea, Theme), `navigation/` (RootStack, MainTabs, typed params, linking) and `hooks/` (app-level hooks, e.g. navigation chrome styling).
 - `src/features/repos/` — `api/` (endpoints, DTOs, mappers, query keys), `hooks/` (`useOrgRepos`, `useRepoDetails`, `useRepoFilter`), `components/` (RepoCard, RepoStats, OrgSearchInput, RepoFilterInput, RepoCardSkeleton), `screens/` (Explore, RepoDetails), `types.ts`, `index.ts`.
 - `src/features/favorites/` — Zustand+MMKV store, `useIsFavorite` / `useToggleFavorite`, FavoriteButton, FavoritesScreen.
 - `src/features/device/` — `native/` (typed TurboModule wrapper), network store, `useNetworkStatus` / `useDeviceInfo`, OfflineBanner, DeviceInfoSection.

@@ -1,11 +1,12 @@
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
-import { makeStyles, useTheme } from '@shared/theme';
+import { useListFooterLoaderStyles } from '@shared/hooks';
+import { useTheme } from '@shared/theme';
 
 export function ListFooterLoader(): React.JSX.Element {
   const theme = useTheme();
-  const styles = useStyles();
+  const styles = useListFooterLoaderStyles();
   return (
     <View
       style={styles.container}
@@ -17,10 +18,3 @@ export function ListFooterLoader(): React.JSX.Element {
     </View>
   );
 }
-
-const useStyles = makeStyles(theme => ({
-  container: {
-    paddingVertical: theme.spacing.md,
-    alignItems: 'center',
-  },
-}));

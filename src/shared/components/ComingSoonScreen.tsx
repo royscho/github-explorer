@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 
-import { makeStyles } from '@shared/theme';
+import { useComingSoonScreenStyles } from '@shared/hooks';
 
 import { Screen } from './Screen';
 import { Text } from './Text';
@@ -13,7 +13,7 @@ export interface ComingSoonScreenProps {
 export function ComingSoonScreen({
   title,
 }: ComingSoonScreenProps): React.JSX.Element {
-  const styles = useStyles();
+  const styles = useComingSoonScreenStyles();
   return (
     <Screen>
       <View style={styles.container}>
@@ -25,15 +25,3 @@ export function ComingSoonScreen({
     </Screen>
   );
 }
-
-const useStyles = makeStyles(theme => ({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: theme.spacing.lg,
-  },
-  message: {
-    marginTop: theme.spacing.sm,
-  },
-}));

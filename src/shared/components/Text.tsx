@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text as RNText, type TextProps as RNTextProps } from 'react-native';
 
-import { makeStyles } from '@shared/theme';
+import { useTextStyles } from '@shared/hooks';
 
 export type TextVariant = 'title' | 'body' | 'caption';
 
@@ -18,7 +18,7 @@ export function Text({
   children,
   ...rest
 }: TextProps): React.JSX.Element {
-  const styles = useStyles();
+  const styles = useTextStyles();
   return (
     <RNText
       style={[
@@ -32,24 +32,3 @@ export function Text({
     </RNText>
   );
 }
-
-const useStyles = makeStyles(theme => ({
-  title: {
-    fontSize: theme.typography.title.fontSize,
-    fontWeight: theme.typography.title.fontWeight,
-  },
-  body: {
-    fontSize: theme.typography.body.fontSize,
-    fontWeight: theme.typography.body.fontWeight,
-  },
-  caption: {
-    fontSize: theme.typography.caption.fontSize,
-    fontWeight: theme.typography.caption.fontWeight,
-  },
-  primary: {
-    color: theme.colors.text,
-  },
-  secondary: {
-    color: theme.colors.textSecondary,
-  },
-}));

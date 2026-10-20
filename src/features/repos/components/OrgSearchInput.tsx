@@ -2,7 +2,9 @@ import React from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 
 import { Text } from '@shared/components';
-import { makeStyles, useTheme } from '@shared/theme';
+import { useTheme } from '@shared/theme';
+
+import { useOrgSearchInputStyles } from '../hooks';
 
 export interface OrgSearchInputProps {
   value: string;
@@ -16,7 +18,7 @@ export function OrgSearchInput({
   onSubmit,
 }: OrgSearchInputProps): React.JSX.Element {
   const theme = useTheme();
-  const styles = useStyles();
+  const styles = useOrgSearchInputStyles();
 
   return (
     <View style={styles.container}>
@@ -46,34 +48,3 @@ export function OrgSearchInput({
     </View>
   );
 }
-
-const useStyles = makeStyles(theme => ({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: theme.spacing.md,
-    gap: theme.spacing.sm,
-  },
-  input: {
-    flex: 1,
-    minHeight: 44,
-    paddingHorizontal: theme.spacing.md,
-    borderRadius: theme.radii.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    color: theme.colors.text,
-  },
-  button: {
-    minHeight: 44,
-    paddingHorizontal: theme.spacing.md,
-    borderRadius: theme.radii.md,
-    backgroundColor: theme.colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonLabel: {
-    color: theme.colors.textOnAccent,
-    fontWeight: '600',
-  },
-}));

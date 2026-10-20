@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 
-import { makeStyles } from '@shared/theme';
+import { useEmptyViewStyles } from '@shared/hooks';
 
 import { Text } from './Text';
 
@@ -10,7 +10,7 @@ export interface EmptyViewProps {
 }
 
 export function EmptyView({ message }: EmptyViewProps): React.JSX.Element {
-  const styles = useStyles();
+  const styles = useEmptyViewStyles();
   return (
     <View style={styles.container}>
       <Text variant="body" color="secondary" style={styles.message}>
@@ -19,15 +19,3 @@ export function EmptyView({ message }: EmptyViewProps): React.JSX.Element {
     </View>
   );
 }
-
-const useStyles = makeStyles(theme => ({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: theme.spacing.lg,
-  },
-  message: {
-    textAlign: 'center',
-  },
-}));

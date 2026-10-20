@@ -1,0 +1,1 @@
+export { useMainTabsStyles } from './useMainTabsStyles';

@@ -2,9 +2,9 @@ import React, { memo } from 'react';
 import { View } from 'react-native';
 
 import { Text } from '@shared/components';
-import { makeStyles } from '@shared/theme';
 import { formatCompactNumber, formatRelativeTime } from '@shared/utils';
 
+import { useRepoCardStyles } from '../hooks';
 import type { Repo } from '../types';
 
 export interface RepoCardProps {
@@ -27,7 +27,7 @@ function buildAccessibilityLabel(repo: Repo): string {
 }
 
 function RepoCardComponent({ repo }: RepoCardProps): React.JSX.Element {
-  const styles = useStyles();
+  const styles = useRepoCardStyles();
 
   return (
     <View
@@ -70,24 +70,3 @@ function RepoCardComponent({ repo }: RepoCardProps): React.JSX.Element {
 }
 
 export const RepoCard = memo(RepoCardComponent);
-
-const useStyles = makeStyles(theme => ({
-  container: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radii.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    padding: theme.spacing.md,
-    marginHorizontal: theme.spacing.md,
-    marginVertical: theme.spacing.xs,
-    gap: theme.spacing.xs,
-  },
-  description: {
-    marginBottom: theme.spacing.xs,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
-  },
-}));
