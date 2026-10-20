@@ -1,4 +1,5 @@
 import React from 'react';
+import { Text } from 'react-native';
 import {
   act,
   fireEvent,
@@ -115,11 +116,13 @@ function mockResult(overrides: Partial<UseOrgReposResult>): UseOrgReposResult {
   };
 }
 
-function renderScreen() {
+function renderScreen(
+  props: Partial<React.ComponentProps<typeof ExploreScreen>> = {},
+) {
   return render(
     <SafeAreaProvider>
       <ThemeProvider>
-        <ExploreScreen />
+        <ExploreScreen {...props} />
       </ThemeProvider>
     </SafeAreaProvider>,
   );
@@ -234,6 +237,24 @@ describe('ExploreScreen', () => {
     expect(await screen.findByText('repo-1')).toBeOnTheScreen();
     expect(await screen.findByText('repo-2')).toBeOnTheScreen();
     expect(screen.queryByText(/Rate limit reached/)).toBeNull();
+  });
+
+  it('passes renderFavoriteToggle through to each card, called with that repo', async () => {
+    useOrgRepos.mockReturnValue(
+      mockResult({ status: 'success', repos: [makeRepo(1)] }),
+    );
+    const renderFavoriteToggle = jest.fn((repo: Repo) => (
+      <Text accessibilityRole="button" accessibilityLabel="favorite-slot">
+        {repo.name}
+      </Text>
+    ));
+    await renderScreen({ renderFavoriteToggle });
+    await submitOrg('facebook');
+
+    expect(
+      await screen.findByRole('button', { name: 'favorite-slot' }),
+    ).toBeOnTheScreen();
+    expect(renderFavoriteToggle).toHaveBeenCalledWith(makeRepo(1));
   });
 
   it('shows "Organization not found" for a NotFoundError with no Retry action', async () => {

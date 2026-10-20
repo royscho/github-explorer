@@ -15,7 +15,7 @@ import { logger } from '@shared/logger';
 
 import { RepoDetailsSkeleton, RepoStats } from '../components';
 import { useRepoDetails, useRepoDetailsScreenStyles } from '../hooks';
-import type { RepoDetailsRouteParams } from '../types';
+import type { RepoDetails, RepoDetailsRouteParams } from '../types';
 
 import { getErrorMessage } from './RepoDetailsScreen.utils';
 
@@ -24,7 +24,15 @@ type RepoDetailsScreenRouteProp = RouteProp<
   'RepoDetails'
 >;
 
-export function RepoDetailsScreen(): React.JSX.Element {
+export interface RepoDetailsScreenProps {
+  // Injected by `app/navigation` — see `RepoCardProps.renderFavoriteToggle`'s comment for why
+  // this feature doesn't import `@features/favorites` to render its own.
+  renderFavoriteToggle?: (repoDetails: RepoDetails) => React.ReactNode;
+}
+
+export function RepoDetailsScreen({
+  renderFavoriteToggle,
+}: RepoDetailsScreenProps = {}): React.JSX.Element {
   const styles = useRepoDetailsScreenStyles();
   const route = useRoute<RepoDetailsScreenRouteProp>();
   const { owner, repo } = route.params;
@@ -153,6 +161,7 @@ export function RepoDetailsScreen(): React.JSX.Element {
               View on GitHub
             </Text>
           </Pressable>
+          {renderFavoriteToggle?.(repoDetails)}
         </View>
       </ScrollView>
     );

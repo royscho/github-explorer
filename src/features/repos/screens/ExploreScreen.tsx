@@ -50,7 +50,15 @@ type ExploreScreenNavigationProp = NativeStackNavigationProp<{
   RepoDetails: RepoDetailsRouteParams;
 }>;
 
-export function ExploreScreen(): React.JSX.Element {
+export interface ExploreScreenProps {
+  // Injected by `app/navigation` — see `RepoCardProps.renderFavoriteToggle`'s comment for why
+  // this feature doesn't import `@features/favorites` to render its own.
+  renderFavoriteToggle?: (repo: Repo) => React.ReactNode;
+}
+
+export function ExploreScreen({
+  renderFavoriteToggle,
+}: ExploreScreenProps = {}): React.JSX.Element {
   const styles = useExploreScreenStyles();
   const navigation = useNavigation<ExploreScreenNavigationProp>();
   const prefetchRepoDetails = usePrefetchRepoDetails();
@@ -138,9 +146,10 @@ export function ExploreScreen(): React.JSX.Element {
         repo={item}
         onPress={openRepoDetails}
         onPressIn={prefetchRepo}
+        renderFavoriteToggle={renderFavoriteToggle}
       />
     ),
-    [openRepoDetails, prefetchRepo],
+    [openRepoDetails, prefetchRepo, renderFavoriteToggle],
   );
 
   function renderFooter(): React.ReactElement | null {

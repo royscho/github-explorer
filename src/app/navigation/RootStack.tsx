@@ -2,6 +2,8 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { RepoDetailsScreen } from '@features/repos';
+import type { RepoDetails } from '@features/repos';
+import { FavoriteToggle } from '@features/favorites';
 import { ScreenErrorBoundary } from '@shared/components';
 
 import { MainTabs } from './MainTabs';
@@ -9,10 +11,18 @@ import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+// See MainTabs.tsx's `renderCardFavoriteToggle` comment — same reasoning, non-compact here since
+// this renders inline in the details content rather than overlaid on a card corner.
+function renderDetailsFavoriteToggle(
+  repoDetails: RepoDetails,
+): React.JSX.Element {
+  return <FavoriteToggle repo={repoDetails} />;
+}
+
 function RepoDetailsScreenWithBoundary(): React.JSX.Element {
   return (
     <ScreenErrorBoundary>
-      <RepoDetailsScreen />
+      <RepoDetailsScreen renderFavoriteToggle={renderDetailsFavoriteToggle} />
     </ScreenErrorBoundary>
   );
 }
