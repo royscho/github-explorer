@@ -51,7 +51,7 @@ The user types a GitHub organization (`facebook`, `vercel`, …), browses its re
 
 ### 3.2 Folder structure
 
-- `src/app/` — `App.tsx`, providers (QueryClient, persister, SafeArea, Theme) and `navigation/` (RootStack, MainTabs, typed params, linking).
+- `src/app/` — `App.tsx`, providers (QueryClient, persister, SafeArea, Theme), `navigation/` (RootStack, MainTabs, typed params, linking) and `hooks/` (app-level hooks, e.g. navigation chrome styling).
 - `src/features/repos/` — `api/` (endpoints, DTOs, mappers, query keys), `hooks/` (`useOrgRepos`, `useRepoDetails`, `useRepoFilter`), `components/` (RepoCard, RepoStats, OrgSearchInput, RepoFilterInput, RepoCardSkeleton), `screens/` (Explore, RepoDetails), `types.ts`, `index.ts`.
 - `src/features/favorites/` — Zustand+MMKV store, `useIsFavorite` / `useToggleFavorite`, FavoriteButton, FavoritesScreen.
 - `src/features/device/` — `native/` (typed TurboModule wrapper), network store, `useNetworkStatus` / `useDeviceInfo`, OfflineBanner, DeviceInfoSection.
@@ -169,7 +169,7 @@ Both inputs are designed to avoid unnecessary API calls:
 - Light and dark token sets in `shared/theme`: colors, spacing, typography, radii.
 - Theme mode `system | light | dark`, default `system` (`useColorScheme`); the choice is saved in `settingsStore` and survives restart. The same theme drives `NavigationContainer` (headers, tab bar) and `StatusBar`.
 - **Styles are declared with `makeStyles(theme => …)` and consumed via `useStyles()`.** `makeStyles` calls `StyleSheet.create` **once per theme** and caches it at module level, so every instance of a component (all list cards) shares one style object and styles rebuild only when the theme changes — cheaper than a `useMemo` per instance, and components stay free of theme plumbing. No inline style objects, no hard-coded colors.
-- **No UI kit.** Only what navigation requires (`react-native-screens`, `react-native-safe-area-context`), FlashList and a vector-icon package; components are hand-built in `shared/components`.
+- **No UI kit.** Only what navigation requires (`react-native-screens`, `react-native-safe-area-context`), FlashList and `@react-native-vector-icons/ionicons` (TurboModule-based, built for the New Architecture); components are hand-built in `shared/components`.
 - **Dates & numbers:** `Intl.DateTimeFormat` for absolute dates. Hermes supports `Intl` only partly (`RelativeTimeFormat` and compact notation are unreliable), so `formatRelativeTime` ("3 days ago") and `formatCompactNumber` ("12.3k") are small hand-written, unit-tested helpers. No moment (deprecated, heavy); date-fns is the fallback if needs grow.
 
 ---
