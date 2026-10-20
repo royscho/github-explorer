@@ -1,4 +1,5 @@
 import React from 'react';
+import { Pressable, Text } from 'react-native';
 import { render, screen, userEvent } from '@testing-library/react-native';
 
 import { ThemeProvider } from '@shared/theme';
@@ -28,7 +29,10 @@ const baseRepo: Repo = {
 function renderCard(
   repo: Repo,
   props: Partial<
-    Pick<React.ComponentProps<typeof RepoCard>, 'onPress' | 'onPressIn'>
+    Pick<
+      React.ComponentProps<typeof RepoCard>,
+      'onPress' | 'onPressIn' | 'renderFavoriteToggle'
+    >
   > = {},
 ) {
   return render(
@@ -120,5 +124,47 @@ describe('RepoCard', () => {
     await renderCard(baseRepo, { onPress });
     const card = await screen.findByRole('button', { name: /^react,/ });
     await expect(userEvent.press(card)).resolves.not.toThrow();
+  });
+
+  it('renders nothing extra when renderFavoriteToggle is omitted', async () => {
+    await renderCard(baseRepo);
+    expect(screen.queryByRole('button', { name: /favorites/ })).toBeNull();
+  });
+
+  it('renders the favorite toggle slot, called with the repo', async () => {
+    const renderFavoriteToggle = jest.fn((repo: Repo) => (
+      <Text accessibilityRole="button" accessibilityLabel="Add to favorites">
+        star for {repo.name}
+      </Text>
+    ));
+    await renderCard(baseRepo, { renderFavoriteToggle });
+
+    expect(renderFavoriteToggle).toHaveBeenCalledWith(baseRepo);
+    expect(
+      await screen.findByRole('button', { name: 'Add to favorites' }),
+    ).toBeOnTheScreen();
+  });
+
+  it('pressing the favorite toggle slot does not trigger the card onPress', async () => {
+    const onPress = jest.fn();
+    const onToggleFavorite = jest.fn();
+    const renderFavoriteToggle = jest.fn(() => (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Add to favorites"
+        onPress={onToggleFavorite}
+      >
+        <Text>star</Text>
+      </Pressable>
+    ));
+    await renderCard(baseRepo, { onPress, renderFavoriteToggle });
+
+    const toggle = await screen.findByRole('button', {
+      name: 'Add to favorites',
+    });
+    await userEvent.press(toggle);
+
+    expect(onToggleFavorite).toHaveBeenCalledTimes(1);
+    expect(onPress).not.toHaveBeenCalled();
   });
 });

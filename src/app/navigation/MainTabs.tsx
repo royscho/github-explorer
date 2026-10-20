@@ -6,22 +6,35 @@ import type { TextStyle } from 'react-native';
 import { ComingSoonScreen, ScreenErrorBoundary } from '@shared/components';
 import { useTheme } from '@shared/theme';
 import { ExploreScreen } from '@features/repos';
+import type { Repo } from '@features/repos';
+import { FavoriteToggle, FavoritesScreen } from '@features/favorites';
 import { useMainTabsStyles } from '@app/hooks';
 
 import type { MainTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
+// `features/repos` and `features/favorites` never import each other (favorites already depends
+// on repos for `Repo`/`RepoCard`, so the other direction would be a cycle) — this is the one spot
+// that knows both, wiring the favorites-aware toggle into the repo cards each tab renders.
+function renderCardFavoriteToggle(repo: Repo): React.JSX.Element {
+  return <FavoriteToggle repo={repo} compact />;
+}
+
 function ExploreScreenWithBoundary(): React.JSX.Element {
   return (
     <ScreenErrorBoundary>
-      <ExploreScreen />
+      <ExploreScreen renderFavoriteToggle={renderCardFavoriteToggle} />
     </ScreenErrorBoundary>
   );
 }
 
-function FavoritesPlaceholder(): React.JSX.Element {
-  return <ComingSoonScreen title="Favorites" />;
+function FavoritesScreenWithBoundary(): React.JSX.Element {
+  return (
+    <ScreenErrorBoundary>
+      <FavoritesScreen renderFavoriteToggle={renderCardFavoriteToggle} />
+    </ScreenErrorBoundary>
+  );
 }
 
 function SettingsPlaceholder(): React.JSX.Element {
@@ -65,7 +78,7 @@ export function MainTabs(): React.JSX.Element {
       />
       <Tab.Screen
         name="Favorites"
-        component={FavoritesPlaceholder}
+        component={FavoritesScreenWithBoundary}
         options={{ tabBarIcon: FavoritesTabIcon }}
       />
       <Tab.Screen

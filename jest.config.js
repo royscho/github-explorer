@@ -5,7 +5,10 @@ module.exports = {
     '<rootDir>/jest.setup.js',
   ],
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-navigation|react-native-screens|@shopify/flash-list|@react-native-vector-icons)/)',
+    // `immer`'s "react-native" export condition (matched by this preset, same as Metro) points to
+    // its ESM build, which Jest can't require unless it's transformed like the RN-ecosystem
+    // packages above.
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-navigation|react-native-screens|@shopify/flash-list|@react-native-vector-icons|immer)/)',
   ],
   moduleNameMapper: {
     '^@app/(.*)$': '<rootDir>/src/app/$1',

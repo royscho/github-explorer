@@ -13,6 +13,13 @@ jest.mock('@features/repos', () => ({
   },
 }));
 
+jest.mock('@features/favorites', () => ({
+  FavoritesScreen: () => {
+    const { Text: RNText } = jest.requireActual('react-native');
+    return <RNText>Favorites Stub</RNText>;
+  },
+}));
+
 function renderMainTabs() {
   return render(
     <ThemeProvider>
@@ -40,14 +47,12 @@ describe('MainTabs', () => {
     expect(await screen.findByText('Explore Stub')).toBeOnTheScreen();
   });
 
-  it('switches to the Favorites placeholder when its tab is pressed', async () => {
+  it('switches to the Favorites screen when its tab is pressed', async () => {
     await renderMainTabs();
     await userEvent.press(
       await screen.findByRole('button', { name: /^Favorites/ }),
     );
-    expect(
-      await screen.findByText('Coming in a later milestone.'),
-    ).toBeOnTheScreen();
+    expect(await screen.findByText('Favorites Stub')).toBeOnTheScreen();
     expect(screen.queryByText('Explore Stub')).toBeNull();
   });
 

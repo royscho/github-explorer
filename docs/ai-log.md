@@ -232,3 +232,91 @@ One entry per milestone, written by `/gen-step` (step 7). Source for `AI_USAGE.m
   read that flag, keeping the handler generic while letting each feature opt in to softer logging
   for the 404s it actually expects.
 - Validation: lint / typecheck / tests (229 tests) all pass.
+
+## 06 — Favorites (2026-10-20)
+
+- Model(s): implementer Sonnet 5, reviewer code-reviewer (opus).
+- AI generated: the `favoritesStore` (Zustand + MMKV `persist`, snapshotted to `Repo`-only fields),
+  `shared/storage`'s MMKV instance + Zustand storage adapter, `FavoriteButton`/`FavoriteToggle`,
+  `FavoritesScreen`, the `renderFavoriteToggle` slot threaded through `RepoCard`/`ExploreScreen`/
+  `RepoDetailsScreen`, the `app/navigation` wiring that connects them, and all new/changed tests.
+  Also ran `cd ios && pod install` for the new native dependency and committed `Podfile.lock`.
+- Changed / rejected by me: nothing by hand outside this session — all changes were authored and
+  reviewed here.
+- Reviewer findings: fixed 12, rejected/deferred 3.
+  - Fixed: the favorite toggle's scope was wrong (Details-only, reasoned from §6.3's content
+    bullets) — §8/§12/§14 all assume a per-card toggle, confirmed with the user and widened to
+    `RepoCard` (used by both Explore and Favorites); the resulting `features/repos`↔`features/favorites`
+    require cycle that a naive "card needs favorites" fix would have caused, via the
+    `renderFavoriteToggle` slot-prop + `app/navigation` wiring pattern; `toggleFavorite` persisting a
+    full `RepoDetails` (including fake placeholder values) instead of a `Repo`-shaped snapshot; no
+    test actually exercised MMKV persistence/rehydration; no prefetch-on-press-in from the
+    Favorites tab (Explore already had it); the iOS Podfile.lock not reflecting the new native
+    dependency; a redundant hand-written `react-native-mmkv` jest mock duplicating the library's
+    own built-in test-mode mock; a vacuous "starts empty" store test that couldn't fail;
+    `useFavoritesList`'s test list missing a removal case; a few lines Prettier wanted reformatted.
+  - Rejected: a shared `Icon` component wrapping `Ionicons` (MainTabs already uses `Ionicons`
+    directly today — not a regression introduced here, and out of scope to build now);
+    deduplicating the 3-line `keyExtractor` shared by Explore/Favorites (not worth an abstraction
+    per CLAUDE.md's "three similar lines beat a premature abstraction").
+  - Deferred (documented, not fixed): opening a favorited repo's Details while offline still hits
+    the network and fails — fixing it needs `useRepoDetails` to accept the favorites snapshot as a
+    placeholder-data source, the same cross-feature-awareness problem the `renderFavoriteToggle`
+    slot was built to avoid, and full offline support is milestone 8's explicit scope. Recorded in
+    the step doc's Risks.
+- Validation: lint / typecheck / tests (263 tests) all pass. `pod install` completed cleanly
+  (90 pods installed).
+- Where AI was useful / risky: the review caught a real misread of DESIGN that a careful first
+  read still missed — §6.3's content-bullet listing of "favorite toggle" under Details read as a
+  placement spec, when §8/§12/§14 (read earlier in the same pass) already described a per-card
+  toggle and just weren't cross-referenced against it. Useful demonstration that a second pass
+  genuinely catches things the first one feels confident about. Risky/notable: the fix for that
+  one wrong assumption cascaded into a real architecture decision (a render-prop slot pattern
+  threaded through four files) rather than a one-line change — worth watching for whenever a
+  scope correction surfaces mid-step, since the blast radius of "where does this prop come from"
+  can be larger than the original mistake.
+
+### Follow-up: restart-persistence investigation + immer (same day, same branch)
+
+- The user ran the app and reported "Favorites should persist after app restart," alongside a
+  screenshot of a live `[zustand persist middleware] Unable to update item 'favorites-storage', the
+given storage is currently unavailable.` warning from React Native DevTools.
+- AI generated: launched the app on an iOS simulator (`npx react-native run-ios`), read zustand's
+  actual `persist`/`createJSONStorage` source to find exactly when that warning fires, then
+  connected directly to the running app's Hermes runtime over Metro's CDP inspector
+  (`ws://localhost:8081/inspector/...`) to probe `globalThis.nativeModuleProxy['MmkvCxx']` against a
+  known-working native module as a control. Root cause: a stale native build (two leftover Xcode
+  `DerivedData` folders) — the simulator instance connected to Metro was running a binary compiled
+  before `react-native-mmkv` was linked, so the native half of MMKV genuinely wasn't registered; JS
+  hot-reloads independently of the native binary, so newer JS calling into MMKV ran against older,
+  unlinked native code. Fixed by uninstalling the app from every simulator, clearing both stale
+  `DerivedData` folders, and doing a clean rebuild; re-probed `MmkvCxx` to confirm it now resolves.
+  Then, rather than trust that and stop, wrote a probe value through the real native `MmkvCxx`
+  module directly (bypassing the JS wrapper entirely, same CDP connection), did a genuine
+  `xcrun simctl terminate` + `simctl launch` (an actual process kill), and read the value back
+  successfully — direct, non-mocked proof of the exact mechanism "survives restart" depends on, on
+  the corrected build. Full writeup in `docs/steps/06-favorites.md`'s new "Verified: restart
+  persistence" section.
+- Also by explicit user request: refactored `favoritesStore.ts`'s `toggleFavorite` to use zustand's
+  `immer` middleware (`persist(immer(creator), persistOptions)`) instead of manual object
+  spread/`delete` for the add/remove branches. Needed adding `immer` to
+  `jest.config.js`'s `transformIgnorePatterns` — its `"react-native"` package-export condition
+  points at an ESM build Jest can't parse by default, the same situation `zustand` itself required
+  an allowlist entry for.
+- Changed / rejected by me: nothing by hand — diagnosis, fix and refactor all done in-session.
+- Validation: lint / typecheck / tests (263 tests, unchanged pass count — the immer refactor kept
+  the same external store API) all pass. Verified live on an iOS simulator: native module linkage
+  confirmed via CDP probe, and a real MMKV write survived a genuine process kill/relaunch.
+- Where AI was useful / risky: this is the clearest example yet in this project of a bug that
+  unit tests structurally cannot catch — every test in this codebase mocks MMKV (either the
+  project's own now-removed hand mock, or `react-native-mmkv`'s built-in `JEST_WORKER_ID`-detected
+  mock), so "does this actually survive a cold process restart on a real native binary" was
+  never exercised by `npm test`. Going straight to a live device/simulator and a CDP-level probe,
+  rather than re-reading the (already-correct) JS source for a bug that wasn't there, was the
+  right call — the bug was in build state, not code, and no amount of staring at
+  `favoritesStore.ts` would have found that. Risky/notable: this required fairly deep, somewhat
+  fragile tooling (manually driving Metro's CDP inspector protocol with a raw WebSocket, guessing
+  at `globalThis.nativeModuleProxy` as the bridgeless-mode native-module access point) that isn't
+  something this project has any standing skill or script for — worth capturing as a reusable
+  debugging technique if a similar "is the native side actually linked" question comes up again in
+  milestone 7's own custom native module.

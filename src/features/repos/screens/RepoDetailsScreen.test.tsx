@@ -1,5 +1,5 @@
 import React from 'react';
-import { Linking } from 'react-native';
+import { Linking, Text } from 'react-native';
 import {
   fireEvent,
   render,
@@ -94,11 +94,13 @@ function mockResult(
   };
 }
 
-function renderScreen() {
+function renderScreen(
+  props: Partial<React.ComponentProps<typeof RepoDetailsScreen>> = {},
+) {
   return render(
     <SafeAreaProvider>
       <ThemeProvider>
-        <RepoDetailsScreen />
+        <RepoDetailsScreen {...props} />
       </ThemeProvider>
     </SafeAreaProvider>,
   );
@@ -272,5 +274,42 @@ describe('RepoDetailsScreen', () => {
     const refreshControl = await screen.findByTestId('repo-details-refresh');
     fireEvent(refreshControl, 'refresh');
     expect(refetch).toHaveBeenCalled();
+  });
+
+  // The screen has no idea what favorites are — it only calls whatever `renderFavoriteToggle` it
+  // was given, with the loaded `repoDetails`. The favorites-aware implementation itself
+  // (`FavoriteToggle`, wired in by `app/navigation`) is covered in `features/favorites`.
+  it('calls renderFavoriteToggle with repoDetails and renders what it returns, once loaded', async () => {
+    const renderFavoriteToggle = jest.fn((details: RepoDetails) => (
+      <Text accessibilityRole="button" accessibilityLabel="favorite-slot">
+        {details.fullName}
+      </Text>
+    ));
+    useRepoDetails.mockReturnValue(
+      mockResult({ status: 'success', repoDetails: baseRepoDetails }),
+    );
+    await renderScreen({ renderFavoriteToggle });
+
+    expect(renderFavoriteToggle).toHaveBeenCalledWith(baseRepoDetails);
+    expect(
+      await screen.findByRole('button', { name: 'favorite-slot' }),
+    ).toBeOnTheScreen();
+  });
+
+  it('does not call renderFavoriteToggle while there is no repoDetails yet (skeleton/error)', async () => {
+    const renderFavoriteToggle = jest.fn();
+    useRepoDetails.mockReturnValue(
+      mockResult({ status: 'pending', repoDetails: undefined }),
+    );
+    await renderScreen({ renderFavoriteToggle });
+
+    expect(renderFavoriteToggle).not.toHaveBeenCalled();
+  });
+
+  it('renders normally when renderFavoriteToggle is omitted', async () => {
+    useRepoDetails.mockReturnValue(
+      mockResult({ status: 'success', repoDetails: baseRepoDetails }),
+    );
+    await expect(renderScreen()).resolves.not.toThrow();
   });
 });

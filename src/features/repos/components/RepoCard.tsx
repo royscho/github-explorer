@@ -15,6 +15,10 @@ export interface RepoCardProps {
   // re-render when every prop, including these, is referentially equal across renders.
   onPress: (repo: Repo) => void;
   onPressIn?: (repo: Repo) => void;
+  // `features/repos` has no knowledge of favorites — the caller (ultimately `app/navigation`)
+  // injects the favorite affordance so this feature never has to import `@features/favorites`
+  // (which would create a require cycle: favorites already depends on repos for `Repo`/`RepoCard`).
+  renderFavoriteToggle?: (repo: Repo) => React.ReactNode;
 }
 
 function buildAccessibilityLabel(repo: Repo): string {
@@ -36,6 +40,7 @@ function RepoCardComponent({
   repo,
   onPress,
   onPressIn,
+  renderFavoriteToggle,
 }: RepoCardProps): React.JSX.Element {
   const styles = useRepoCardStyles();
 
@@ -48,41 +53,49 @@ function RepoCardComponent({
   }
 
   return (
-    <Pressable
-      style={styles.container}
-      accessible
-      accessibilityRole="button"
-      accessibilityLabel={buildAccessibilityLabel(repo)}
-      onPress={handlePress}
-      onPressIn={handlePressIn}
-    >
-      <Text variant="title" numberOfLines={1}>
-        {repo.name}
-      </Text>
-      <Text
-        variant="body"
-        color="secondary"
-        style={styles.description}
-        numberOfLines={2}
+    <View style={styles.wrapper}>
+      <Pressable
+        style={styles.container}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={buildAccessibilityLabel(repo)}
+        onPress={handlePress}
+        onPressIn={handlePressIn}
       >
-        {repo.description ?? 'No description'}
-      </Text>
-      <View style={styles.metaRow}>
-        {repo.language ? (
-          <Text variant="caption" color="secondary">
-            {repo.language}
-          </Text>
-        ) : null}
-        <RepoStats
-          stars={repo.stars}
-          forks={repo.forks}
-          openIssues={repo.openIssues}
-        />
-      </View>
-      <Text variant="caption" color="secondary">
-        updated {formatRelativeTime(repo.updatedAt)}
-      </Text>
-    </Pressable>
+        <Text variant="title" numberOfLines={1}>
+          {repo.name}
+        </Text>
+        <Text
+          variant="body"
+          color="secondary"
+          style={styles.description}
+          numberOfLines={2}
+        >
+          {repo.description ?? 'No description'}
+        </Text>
+        <View style={styles.metaRow}>
+          {repo.language ? (
+            <Text variant="caption" color="secondary">
+              {repo.language}
+            </Text>
+          ) : null}
+          <RepoStats
+            stars={repo.stars}
+            forks={repo.forks}
+            openIssues={repo.openIssues}
+          />
+        </View>
+        <Text variant="caption" color="secondary">
+          updated {formatRelativeTime(repo.updatedAt)}
+        </Text>
+      </Pressable>
+      {renderFavoriteToggle && (
+        // A sibling of the card's own Pressable, not nested inside it — nesting touchables makes
+        // the outer one swallow taps meant for the inner one (same reasoning as the clear buttons
+        // on OrgSearchInput/NameFilterInput).
+        <View style={styles.favoriteToggle}>{renderFavoriteToggle(repo)}</View>
+      )}
+    </View>
   );
 }
 
