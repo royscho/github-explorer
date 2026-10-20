@@ -17,10 +17,10 @@ function makeDto(overrides: Partial<RepoDto> = {}): RepoDto {
     stargazers_count: 220000,
     forks_count: 45000,
     open_issues_count: 1200,
-    watchers_count: 220000,
     created_at: '2013-05-24T16:15:54Z',
     updated_at: '2026-10-19T08:00:00Z',
     default_branch: 'main',
+    subscribers_count: 6700,
     license: { key: 'mit', name: 'MIT License', spdx_id: 'MIT' },
     ...overrides,
   };
@@ -45,7 +45,6 @@ describe('mapRepo', () => {
       stars: 220000,
       forks: 45000,
       openIssues: 1200,
-      watchers: 220000,
       createdAt: '2013-05-24T16:15:54Z',
       updatedAt: '2026-10-19T08:00:00Z',
     });
@@ -69,6 +68,13 @@ describe('mapRepoDetails', () => {
       name: 'MIT License',
       spdxId: 'MIT',
     });
+  });
+
+  it('maps watchers from subscribers_count, not the stargazers-duplicating watchers_count', () => {
+    const details = mapRepoDetails(
+      makeDto({ stargazers_count: 220000, subscribers_count: 6700 }),
+    );
+    expect(details.watchers).toBe(6700);
   });
 
   it('maps a null license to null', () => {

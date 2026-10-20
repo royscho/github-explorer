@@ -26,7 +26,6 @@ function makeRepo(id: number): Repo {
     stars: 0,
     forks: 0,
     openIssues: 0,
-    watchers: 0,
     createdAt: '2020-01-01T00:00:00Z',
     updatedAt: '2020-01-01T00:00:00Z',
   };

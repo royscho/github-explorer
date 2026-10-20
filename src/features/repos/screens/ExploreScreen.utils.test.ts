@@ -1,11 +1,7 @@
 import { ApiError, NetworkError, NotFoundError } from '@shared/api';
 
 import type { Repo } from '../types';
-import {
-  formatResetTime,
-  getErrorMessage,
-  keyExtractor,
-} from './ExploreScreen.utils';
+import { getErrorMessage, keyExtractor } from './ExploreScreen.utils';
 
 const repo: Repo = {
   id: 1,
@@ -18,21 +14,9 @@ const repo: Repo = {
   stars: 0,
   forks: 0,
   openIssues: 0,
-  watchers: 0,
   createdAt: '2020-01-01T00:00:00Z',
   updatedAt: '2020-01-01T00:00:00Z',
 };
-
-describe('formatResetTime', () => {
-  it('formats a date as a localized hour:minute string', () => {
-    const resetAt = new Date('2026-01-01T15:30:00.000Z');
-    const expected = new Intl.DateTimeFormat(undefined, {
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(resetAt);
-    expect(formatResetTime(resetAt)).toBe(expected);
-  });
-});
 
 describe('getErrorMessage', () => {
   it('maps NetworkError to "No connection"', () => {

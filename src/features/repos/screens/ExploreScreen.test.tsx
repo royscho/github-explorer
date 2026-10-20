@@ -22,8 +22,18 @@ import { ExploreScreen } from './ExploreScreen';
 jest.mock('../hooks', () => ({
   ...jest.requireActual('../hooks'),
   useOrgRepos: jest.fn(),
+  usePrefetchRepoDetails: jest.fn(),
 }));
-const { useOrgRepos } = require('../hooks') as { useOrgRepos: jest.Mock };
+const { useOrgRepos, usePrefetchRepoDetails } = require('../hooks') as {
+  useOrgRepos: jest.Mock;
+  usePrefetchRepoDetails: jest.Mock;
+};
+
+const mockNavigate = jest.fn();
+jest.mock('@react-navigation/native', () => ({
+  ...jest.requireActual('@react-navigation/native'),
+  useNavigation: () => ({ navigate: mockNavigate }),
+}));
 
 // FlashList's real scroll-virtualization needs real on-device layout measurement that the test
 // renderer can't provide; this test cares about ExploreScreen's wiring (what it passes to the
@@ -78,7 +88,6 @@ function makeRepo(id: number, overrides: Partial<Repo> = {}): Repo {
     stars: 0,
     forks: 0,
     openIssues: 0,
-    watchers: 0,
     createdAt: '2020-01-01T00:00:00Z',
     updatedAt: '2020-01-01T00:00:00Z',
     ...overrides,
@@ -121,6 +130,8 @@ async function submitOrg(org: string): Promise<void> {
 describe('ExploreScreen', () => {
   beforeEach(() => {
     useOrgRepos.mockReturnValue(mockResult({ status: 'pending' }));
+    usePrefetchRepoDetails.mockReturnValue(jest.fn());
+    mockNavigate.mockReset();
   });
 
   it('shows the input and no list before an org is submitted', async () => {
@@ -150,6 +161,33 @@ describe('ExploreScreen', () => {
     await submitOrg('facebook');
     expect(await screen.findByText('repo-1')).toBeOnTheScreen();
     expect(await screen.findByText('repo-2')).toBeOnTheScreen();
+  });
+
+  it('navigates to RepoDetails with the owner/repo when a card is pressed', async () => {
+    useOrgRepos.mockReturnValue(
+      mockResult({ status: 'success', repos: [makeRepo(1)] }),
+    );
+    await renderScreen();
+    await submitOrg('facebook');
+    const card = await screen.findByRole('button', { name: /^repo-1,/ });
+    await userEvent.press(card);
+    expect(mockNavigate).toHaveBeenCalledWith('RepoDetails', {
+      owner: 'facebook',
+      repo: 'repo-1',
+    });
+  });
+
+  it('prefetches repo details on press-in of a card', async () => {
+    const prefetch = jest.fn();
+    usePrefetchRepoDetails.mockReturnValue(prefetch);
+    useOrgRepos.mockReturnValue(
+      mockResult({ status: 'success', repos: [makeRepo(1)] }),
+    );
+    await renderScreen();
+    await submitOrg('facebook');
+    const card = await screen.findByRole('button', { name: /^repo-1,/ });
+    await userEvent.press(card);
+    expect(prefetch).toHaveBeenCalledWith('facebook', 'repo-1');
   });
 
   it('shows the empty-org message when the org has no repos', async () => {

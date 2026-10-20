@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import type { TextStyle } from 'react-native';
 
-import { ComingSoonScreen } from '@shared/components';
+import { ComingSoonScreen, ScreenErrorBoundary } from '@shared/components';
 import { useTheme } from '@shared/theme';
 import { ExploreScreen } from '@features/repos';
 import { useMainTabsStyles } from '@app/hooks';
@@ -11,6 +11,14 @@ import { useMainTabsStyles } from '@app/hooks';
 import type { MainTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
+
+function ExploreScreenWithBoundary(): React.JSX.Element {
+  return (
+    <ScreenErrorBoundary>
+      <ExploreScreen />
+    </ScreenErrorBoundary>
+  );
+}
 
 function FavoritesPlaceholder(): React.JSX.Element {
   return <ComingSoonScreen title="Favorites" />;
@@ -52,7 +60,7 @@ export function MainTabs(): React.JSX.Element {
     >
       <Tab.Screen
         name="Explore"
-        component={ExploreScreen}
+        component={ExploreScreenWithBoundary}
         options={{ tabBarIcon: ExploreTabIcon }}
       />
       <Tab.Screen

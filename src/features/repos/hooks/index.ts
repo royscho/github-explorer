@@ -1,6 +1,12 @@
 export { useOrgRepos } from './useOrgRepos';
 export type { UseOrgReposResult } from './useOrgRepos';
+export { useRepoDetails } from './useRepoDetails';
+export type { UseRepoDetailsResult } from './useRepoDetails';
+export { usePrefetchRepoDetails } from './usePrefetchRepoDetails';
 export { useExploreScreenStyles } from './useExploreScreenStyles';
+export { useRepoDetailsScreenStyles } from './useRepoDetailsScreenStyles';
 export { useRepoCardStyles } from './useRepoCardStyles';
 export { useRepoCardSkeletonStyles } from './useRepoCardSkeletonStyles';
+export { useRepoDetailsSkeletonStyles } from './useRepoDetailsSkeletonStyles';
+export { useRepoStatsStyles } from './useRepoStatsStyles';
 export { useOrgSearchInputStyles } from './useOrgSearchInputStyles';
