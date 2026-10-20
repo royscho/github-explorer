@@ -117,11 +117,30 @@ export function ExploreScreen({
     setOrgTooShort(false);
   }
 
+  // DESIGN §7: the name filter only ever searches already-loaded pages, so pagination must not
+  // auto-advance while a filter is active — FlashList fires onEndReached whenever the *filtered*
+  // list is short enough to fit the viewport, which would otherwise silently page through the
+  // whole org just because a filter narrowed the visible rows. Checking the raw `nameFilter`
+  // (not the debounced one) turns the guard on at the first keystroke; checking both means
+  // clearing the filter can't leave a ~250ms window where the still-narrow debounced list lets
+  // one unwanted page slip through before it catches up.
   const onEndReached = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
+    if (
+      nameFilter.trim() ||
+      debouncedNameFilter.trim() ||
+      !hasNextPage ||
+      isFetchingNextPage
+    ) {
+      return;
     }
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+    fetchNextPage();
+  }, [
+    nameFilter,
+    debouncedNameFilter,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  ]);
 
   const openRepoDetails = useCallback(
     (repo: Repo) => {
