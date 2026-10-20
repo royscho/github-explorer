@@ -1,8 +1,9 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { useCallback, useMemo } from 'react';
+import { useInfiniteQuery, type InfiniteData } from '@tanstack/react-query';
+import { useCallback } from 'react';
 
 import { ApiError, isGitHubApiError, type GitHubApiError } from '@shared/api';
 
+import type { OrgReposPage } from '../api/endpoints';
 import { fetchOrgRepos } from '../api/endpoints';
 import { repoKeys } from '../api/queryKeys';
 import type { Repo } from '../types';
@@ -30,6 +31,10 @@ function toGitHubApiError(error: unknown): GitHubApiError | null {
   return new ApiError(0, String(error));
 }
 
+function selectRepos(data: InfiniteData<OrgReposPage, number>): Repo[] {
+  return data.pages.flatMap(page => page.repos);
+}
+
 export function useOrgRepos(org: string): UseOrgReposResult {
   const query = useInfiniteQuery({
     queryKey: repoKeys.orgList(org),
@@ -38,12 +43,8 @@ export function useOrgRepos(org: string): UseOrgReposResult {
     getNextPageParam: (lastPage, pages) =>
       lastPage.hasNextPage ? pages.length + 1 : undefined,
     enabled: Boolean(org),
+    select: selectRepos,
   });
-
-  const repos = useMemo(
-    () => query.data?.pages.flatMap(page => page.repos) ?? [],
-    [query.data],
-  );
 
   const { fetchNextPage: queryFetchNextPage, refetch: queryRefetch } = query;
 
@@ -56,7 +57,7 @@ export function useOrgRepos(org: string): UseOrgReposResult {
   }, [queryRefetch]);
 
   return {
-    repos,
+    repos: query.data ?? [],
     status: query.status,
     error: toGitHubApiError(query.error),
     hasNextPage: Boolean(query.hasNextPage),
