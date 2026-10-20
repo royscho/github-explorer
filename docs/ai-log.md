@@ -213,3 +213,22 @@ One entry per milestone, written by `/gen-step` (step 7). Source for `AI_USAGE.m
   `.press`) RNTL `fireEvent(...)` call returns a `Promise` that must be awaited before asserting on
   a re-render — an unawaited keyboard-submit `fireEvent` produced a flaky-looking assertion
   failure (read a stale pre-submit render) until awaited.
+
+### Follow-up: clear buttons (same day, same branch)
+
+- AI generated, by request, after the milestone-5 commit above: a clear ("×") button on both
+  `OrgSearchInput` and `NameFilterInput` — an absolutely-positioned `Pressable`
+  (`Ionicons` `close-circle`) shown only while the field has text, clearing it on press. Used a
+  custom cross-platform button rather than RN's `clearButtonMode`, which is iOS-only. Covered by
+  new tests (hidden when empty, shown + clears on press, for both components).
+- Also explored, then explicitly reverted by the user: moving the global `QueryCache.onError`
+  handler in `queryClient.ts` to log a 404 (`NotFoundError`) as `logger.warn` instead of
+  `logger.error`, since an org/repo 404 is a user-correctable "not found", not an app bug. The
+  user judged the fix's _location_ wrong (a global, per-query-type special case there also
+  silently downgrades 404s from unrelated queries, like `useRepoDetails`, where a 404 carries
+  different meaning) and asked to revert; both files were restored via `git restore` before
+  anything was committed. Recommended alternative, not yet implemented: tag the specific query
+  with React Query `meta` (e.g. `meta: { expectedNotFound: true }`) and have the global handler
+  read that flag, keeping the handler generic while letting each feature opt in to softer logging
+  for the 404s it actually expects.
+- Validation: lint / typecheck / tests (229 tests) all pass.

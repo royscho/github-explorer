@@ -37,4 +37,19 @@ describe('NameFilterInput', () => {
     expect(onChangeText).toHaveBeenCalledTimes(5);
     expect(onChangeText).toHaveBeenLastCalledWith('t');
   });
+
+  it('does not show a clear button when the input is empty', async () => {
+    await renderInput({ value: '' });
+    expect(screen.queryByRole('button', { name: 'Clear filter' })).toBeNull();
+  });
+
+  it('shows a clear button when the input has text, and clears it on press', async () => {
+    const onChangeText = jest.fn();
+    await renderInput({ value: 'react', onChangeText });
+    const clearButton = await screen.findByRole('button', {
+      name: 'Clear filter',
+    });
+    await userEvent.press(clearButton);
+    expect(onChangeText).toHaveBeenCalledWith('');
+  });
 });

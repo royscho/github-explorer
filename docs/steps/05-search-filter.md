@@ -165,3 +165,12 @@ mid-step.
 - The name filter resets whenever `org` changes (a new submitted search), so a filter typed against
   one org doesn't silently carry over and hide repos in the next org's results. Not in the original
   plan; added during review.
+- **Added after the initial commit, by user request:** a clear ("×") button on both
+  `OrgSearchInput` and `NameFilterInput`, shown only while the field has text, clearing it on
+  press. Implemented as an absolutely-positioned `Pressable` (`Ionicons` `close-circle`) inside a
+  wrapper `View` around the `TextInput`, rather than RN's `clearButtonMode` prop, since that prop
+  is iOS-only and this app targets both platforms. `accessibilityRole="button"` +
+  `accessibilityLabel` ("Clear organization name" / "Clear filter") per `CLAUDE.md`'s
+  accessibility rule. Pressing `OrgSearchInput`'s clear button goes through the same
+  `onChangeText` the screen already wires to `handleOrgInputChange`, so it also clears the
+  too-short validation message.

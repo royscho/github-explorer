@@ -58,4 +58,21 @@ describe('OrgSearchInput', () => {
       await screen.findByRole('button', { name: 'Search' }),
     ).toBeOnTheScreen();
   });
+
+  it('does not show a clear button when the input is empty', async () => {
+    await renderInput({ value: '' });
+    expect(
+      screen.queryByRole('button', { name: 'Clear organization name' }),
+    ).toBeNull();
+  });
+
+  it('shows a clear button when the input has text, and clears it on press', async () => {
+    const onChangeText = jest.fn();
+    await renderInput({ value: 'facebook', onChangeText });
+    const clearButton = await screen.findByRole('button', {
+      name: 'Clear organization name',
+    });
+    await userEvent.press(clearButton);
+    expect(onChangeText).toHaveBeenCalledWith('');
+  });
 });
