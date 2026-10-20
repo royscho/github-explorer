@@ -10,7 +10,7 @@ import {
   Screen,
   Text,
 } from '@shared/components';
-import { RateLimitError } from '@shared/api';
+import { NotFoundError, RateLimitError } from '@shared/api';
 
 import { OrgSearchInput, RepoCard, RepoCardSkeleton } from '../components';
 import { useExploreScreenStyles, useOrgRepos } from '../hooks';
@@ -79,6 +79,17 @@ export function ExploreScreen(): React.JSX.Element {
           </View>
         );
       }
+      // A 404 means the org name itself is wrong — retrying the exact same query can only fail
+      // the same way again, so there's no Retry action for it (DESIGN §5.3).
+      if (error instanceof NotFoundError) {
+        return (
+          <View style={styles.footerError}>
+            <Text variant="caption" color="secondary">
+              {getErrorMessage(error)}
+            </Text>
+          </View>
+        );
+      }
       return (
         <View style={styles.footerError}>
           <Text
@@ -130,7 +141,14 @@ export function ExploreScreen(): React.JSX.Element {
           />
         );
       }
-      return <ErrorView message={getErrorMessage(error)} onRetry={refetch} />;
+      // Same reasoning as the footer case above: a 404 can't be fixed by retrying.
+      const canRetry = !(error instanceof NotFoundError);
+      return (
+        <ErrorView
+          message={getErrorMessage(error)}
+          onRetry={canRetry ? refetch : undefined}
+        />
+      );
     }
 
     if (repos.length === 0) {

@@ -189,13 +189,14 @@ describe('ExploreScreen', () => {
     expect(screen.queryByText(/Rate limit reached/)).toBeNull();
   });
 
-  it('shows "Organization not found" for a NotFoundError', async () => {
+  it('shows "Organization not found" for a NotFoundError with no Retry action', async () => {
     useOrgRepos.mockReturnValue(
       mockResult({ status: 'error', error: new NotFoundError() }),
     );
     await renderScreen();
     await submitOrg('does-not-exist');
     expect(await screen.findByText('Organization not found')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
   });
 
   it('shows "No connection" for a NetworkError', async () => {
@@ -329,6 +330,22 @@ describe('ExploreScreen', () => {
     expect(
       await screen.findByText(/Rate limit reached, try again at/),
     ).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+  });
+
+  it('shows a footer "Organization not found" message with no Retry when the next page 404s', async () => {
+    useOrgRepos.mockReturnValue(
+      mockResult({
+        status: 'success',
+        repos: [makeRepo(1)],
+        hasNextPage: true,
+        isFetchNextPageError: true,
+        error: new NotFoundError(),
+      }),
+    );
+    await renderScreen();
+    await submitOrg('facebook');
+    expect(await screen.findByText('Organization not found')).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
   });
 
