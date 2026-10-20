@@ -150,7 +150,7 @@ Each list/detail screen handles:
 Both inputs are designed to avoid unnecessary API calls:
 
 - **Organization input** — the query runs only on an explicit action: pressing _Search_ or submitting via the keyboard. Nothing fires while typing. A submission shorter than 2 characters shows an inline "Enter at least 2 characters" message instead of searching. Changing the org cancels the in-flight request through `AbortSignal`.
-- **Name filter** — filters the **already loaded** repos on the client (`useDebounce` ~250 ms + `useMemo`). **No API calls while typing.**
+- **Name filter** — filters the **already loaded** repos on the client (`useDebounce` ~250 ms + `useMemo`). **No API calls while typing.** Infinite scroll is paused while a filter is active (a short filtered list would otherwise fit the viewport and trigger `onEndReached` repeatedly) — more pages only load once the filter is cleared.
 
 **At 50,000 repositories** client-side filtering stops being meaningful (only loaded pages are searchable). We'd switch to GitHub's Search API (`GET /search/repositories?q=org:{org}+{term}+in:name`) — debounced, cancelable, paginated, with its own lower rate limit handled the same way.
 

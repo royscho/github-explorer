@@ -668,6 +668,76 @@ describe('ExploreScreen', () => {
     expect(screen.queryByText('repo-2')).toBeOnTheScreen();
   });
 
+  it('does not call fetchNextPage on end-reached while a name filter is active', async () => {
+    const fetchNextPage = jest.fn();
+    useOrgRepos.mockReturnValue(
+      mockResult({
+        status: 'success',
+        repos: [makeRepo(1), makeRepo(2)],
+        hasNextPage: true,
+        fetchNextPage,
+      }),
+    );
+    await renderScreen();
+    await submitOrg('facebook');
+
+    const filterInput = await screen.findByLabelText(
+      'Filter repositories by name',
+    );
+    await userEvent.type(filterInput, 'repo-1');
+
+    const list = await screen.findByTestId('repo-list');
+    fireEvent(list, 'endReached');
+    expect(fetchNextPage).not.toHaveBeenCalled();
+  });
+
+  it('resumes calling fetchNextPage on end-reached once the name filter is cleared', async () => {
+    const fetchNextPage = jest.fn();
+    useOrgRepos.mockReturnValue(
+      mockResult({
+        status: 'success',
+        repos: [makeRepo(1), makeRepo(2)],
+        hasNextPage: true,
+        fetchNextPage,
+      }),
+    );
+    await renderScreen();
+    await submitOrg('facebook');
+
+    const filterInput = await screen.findByLabelText(
+      'Filter repositories by name',
+    );
+    await userEvent.type(filterInput, 'repo-1');
+    await userEvent.clear(filterInput);
+
+    const list = await screen.findByTestId('repo-list');
+    fireEvent(list, 'endReached');
+    expect(fetchNextPage).toHaveBeenCalledTimes(1);
+  });
+
+  it('still calls fetchNextPage on end-reached when the filter is whitespace-only', async () => {
+    const fetchNextPage = jest.fn();
+    useOrgRepos.mockReturnValue(
+      mockResult({
+        status: 'success',
+        repos: [makeRepo(1), makeRepo(2)],
+        hasNextPage: true,
+        fetchNextPage,
+      }),
+    );
+    await renderScreen();
+    await submitOrg('facebook');
+
+    const filterInput = await screen.findByLabelText(
+      'Filter repositories by name',
+    );
+    await userEvent.type(filterInput, '   ');
+
+    const list = await screen.findByTestId('repo-list');
+    fireEvent(list, 'endReached');
+    expect(fetchNextPage).toHaveBeenCalledTimes(1);
+  });
+
   it('shows a "no repositories match" empty state when the filter matches nothing', async () => {
     useOrgRepos.mockReturnValue(
       mockResult({ status: 'success', repos: [makeRepo(1), makeRepo(2)] }),
