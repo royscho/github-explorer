@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list';
+import { FlashList } from '@shopify/flash-list';
 
 import {
   EmptyView,
@@ -10,45 +10,22 @@ import {
   Screen,
   Text,
 } from '@shared/components';
-import { NetworkError, NotFoundError, RateLimitError } from '@shared/api';
-import type { GitHubApiError } from '@shared/api';
-import { makeStyles } from '@shared/theme';
+import { RateLimitError } from '@shared/api';
 
-import { OrgSearchInput, RepoCard, RepoCardSkeleton } from '../components';
-import { useOrgRepos } from '../hooks';
+import { OrgSearchInput } from '../components';
+import { useExploreScreenStyles, useOrgRepos } from '../hooks';
 import type { Repo } from '../types';
 
-function formatResetTime(resetAt: Date): string {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(resetAt);
-}
-
-function getErrorMessage(error: GitHubApiError): string {
-  if (error instanceof NetworkError) {
-    return 'No connection';
-  }
-  if (error instanceof NotFoundError) {
-    return 'Organization not found';
-  }
-  return 'Something went wrong';
-}
-
-function keyExtractor(item: Repo): string {
-  return String(item.id);
-}
-
-function renderItem({ item }: ListRenderItemInfo<Repo>): React.JSX.Element {
-  return <RepoCard repo={item} />;
-}
-
-function renderSkeleton(index: number): React.JSX.Element {
-  return <RepoCardSkeleton key={index} />;
-}
+import {
+  formatResetTime,
+  getErrorMessage,
+  keyExtractor,
+  renderItem,
+  renderSkeleton,
+} from './ExploreScreen.utils';
 
 export function ExploreScreen(): React.JSX.Element {
-  const styles = useStyles();
+  const styles = useExploreScreenStyles();
   const [orgInput, setOrgInput] = useState('');
   const [org, setOrg] = useState('');
 
@@ -181,22 +158,3 @@ export function ExploreScreen(): React.JSX.Element {
     </Screen>
   );
 }
-
-const useStyles = makeStyles(theme => ({
-  container: {
-    flex: 1,
-  },
-  footerError: {
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.md,
-    alignItems: 'center',
-    gap: theme.spacing.xs,
-  },
-  footerErrorMessage: {
-    textAlign: 'center',
-  },
-  footerRetryLabel: {
-    color: theme.colors.accent,
-    fontWeight: '600',
-  },
-}));

@@ -19,7 +19,10 @@ import type { UseOrgReposResult } from '../hooks';
 import type { Repo } from '../types';
 import { ExploreScreen } from './ExploreScreen';
 
-jest.mock('../hooks');
+jest.mock('../hooks', () => ({
+  ...jest.requireActual('../hooks'),
+  useOrgRepos: jest.fn(),
+}));
 const { useOrgRepos } = require('../hooks') as { useOrgRepos: jest.Mock };
 
 // FlashList's real scroll-virtualization needs real on-device layout measurement that the test

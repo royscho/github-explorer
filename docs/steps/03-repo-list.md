@@ -247,3 +247,13 @@ None — §9's icon-package blank is being filled in, not changed from what it s
   `renderItem` and exposes `onEndReached`/`onRefresh`/`refreshing` directly as props, so the test
   verifies _this screen's_ wiring to FlashList's props, not FlashList's own internals (that's
   `@shopify/flash-list`'s own test suite's job).
+- **Post-review reorganization (requested by the user):** `ExploreScreen.tsx`'s free functions
+  (`formatResetTime`, `getErrorMessage`, `keyExtractor`, `renderItem`, `renderSkeleton`) moved to
+  `ExploreScreen.utils.tsx` (colocated, not `shared/utils` — `renderItem`/`renderSkeleton` depend on
+  `RepoCard`/`RepoCardSkeleton`, and `shared/` can't depend on `features/`), with their own
+  `ExploreScreen.utils.test.tsx`; the screen's `makeStyles` hook moved to
+  `features/repos/hooks/useExploreScreenStyles.ts`, exported through the feature's `hooks` barrel
+  alongside `useOrgRepos`. `ExploreScreen.tsx` now leads with its component, as asked. The existing
+  `jest.mock('../hooks')` in `ExploreScreen.test.tsx` had to change to a partial mock (real
+  `useExploreScreenStyles`, mocked `useOrgRepos` only) once `useExploreScreenStyles` joined that
+  barrel, since an unqualified `jest.mock('../hooks')` auto-mocks every export.
