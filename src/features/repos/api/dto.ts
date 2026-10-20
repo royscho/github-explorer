@@ -21,9 +21,12 @@ export interface RepoDto {
   stargazers_count: number;
   forks_count: number;
   open_issues_count: number;
-  watchers_count: number;
   created_at: string;
   updated_at: string;
   default_branch: string;
+  // GitHub's `watchers_count` is a long-standing API quirk that always duplicates
+  // `stargazers_count`; the real "people watching this repo" figure is `subscribers_count`
+  // (only on the single-repo endpoint response — see `mapRepoDetails`).
+  subscribers_count: number;
   license: RepoLicenseDto | null;
 }

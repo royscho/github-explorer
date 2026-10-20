@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { render, screen, userEvent } from '@testing-library/react-native';
 
 import { ThemeProvider } from '@shared/theme';
 
@@ -21,15 +21,19 @@ const baseRepo: Repo = {
   stars: 220000,
   forks: 45000,
   openIssues: 900,
-  watchers: 220000,
   createdAt: '2013-05-24T16:15:54Z',
   updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
 };
 
-function renderCard(repo: Repo) {
+function renderCard(
+  repo: Repo,
+  props: Partial<
+    Pick<React.ComponentProps<typeof RepoCard>, 'onPress' | 'onPressIn'>
+  > = {},
+) {
   return render(
     <ThemeProvider>
-      <RepoCard repo={repo} />
+      <RepoCard repo={repo} onPress={jest.fn()} {...props} />
     </ThemeProvider>,
   );
 }
@@ -90,5 +94,31 @@ describe('RepoCard', () => {
         'react, JavaScript, 220k stars, 45k forks, 900 open issues, updated 3 days ago, No description',
       ),
     ).toBeOnTheScreen();
+  });
+
+  it('calls onPress with the repo when pressed', async () => {
+    const onPress = jest.fn();
+    await renderCard(baseRepo, { onPress });
+    const card = await screen.findByRole('button', { name: /^react,/ });
+    await userEvent.press(card);
+    expect(onPress).toHaveBeenCalledTimes(1);
+    expect(onPress).toHaveBeenCalledWith(baseRepo);
+  });
+
+  it('calls onPressIn with the repo on press-in', async () => {
+    const onPress = jest.fn();
+    const onPressIn = jest.fn();
+    await renderCard(baseRepo, { onPress, onPressIn });
+    const card = await screen.findByRole('button', { name: /^react,/ });
+    await userEvent.press(card);
+    expect(onPressIn).toHaveBeenCalledTimes(1);
+    expect(onPressIn).toHaveBeenCalledWith(baseRepo);
+  });
+
+  it('does not throw when onPressIn is omitted', async () => {
+    const onPress = jest.fn();
+    await renderCard(baseRepo, { onPress });
+    const card = await screen.findByRole('button', { name: /^react,/ });
+    await expect(userEvent.press(card)).resolves.not.toThrow();
   });
 });

@@ -1,3 +1,5 @@
+import type { RepoDetailsRouteParams } from '@features/repos';
+
 export type MainTabParamList = {
   Explore: undefined;
   Favorites: undefined;
@@ -6,6 +8,7 @@ export type MainTabParamList = {
 
 export type RootStackParamList = {
   MainTabs: undefined;
+  RepoDetails: RepoDetailsRouteParams;
 };
 
 declare global {

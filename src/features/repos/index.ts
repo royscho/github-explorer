@@ -1,2 +1,8 @@
-export type { Owner, License, Repo, RepoDetails } from './types';
-export { ExploreScreen } from './screens';
+export type {
+  Owner,
+  License,
+  Repo,
+  RepoDetails,
+  RepoDetailsRouteParams,
+} from './types';
+export { ExploreScreen, RepoDetailsScreen } from './screens';

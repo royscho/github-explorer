@@ -6,4 +6,5 @@ export { EmptyView } from './EmptyView';
 export { LoadingView } from './LoadingView';
 export { ListFooterLoader } from './ListFooterLoader';
 export { ErrorBoundary } from './ErrorBoundary';
+export { ScreenErrorBoundary } from './ScreenErrorBoundary';
 export { ComingSoonScreen } from './ComingSoonScreen';

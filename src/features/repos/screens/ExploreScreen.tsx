@@ -1,6 +1,8 @@
 import React, { useCallback, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import {
   EmptyView,
@@ -11,27 +13,30 @@ import {
   Text,
 } from '@shared/components';
 import { NotFoundError, RateLimitError } from '@shared/api';
+import { formatResetTime } from '@shared/utils';
 
 import { OrgSearchInput, RepoCard, RepoCardSkeleton } from '../components';
-import { useExploreScreenStyles, useOrgRepos } from '../hooks';
-import type { Repo } from '../types';
-
 import {
-  formatResetTime,
-  getErrorMessage,
-  keyExtractor,
-} from './ExploreScreen.utils';
+  useExploreScreenStyles,
+  useOrgRepos,
+  usePrefetchRepoDetails,
+} from '../hooks';
+import type { Repo, RepoDetailsRouteParams } from '../types';
 
-function renderItem({ item }: ListRenderItemInfo<Repo>): React.JSX.Element {
-  return <RepoCard repo={item} />;
-}
+import { getErrorMessage, keyExtractor } from './ExploreScreen.utils';
 
 function renderSkeleton(index: number): React.JSX.Element {
   return <RepoCardSkeleton key={index} />;
 }
 
+type ExploreScreenNavigationProp = NativeStackNavigationProp<{
+  RepoDetails: RepoDetailsRouteParams;
+}>;
+
 export function ExploreScreen(): React.JSX.Element {
   const styles = useExploreScreenStyles();
+  const navigation = useNavigation<ExploreScreenNavigationProp>();
+  const prefetchRepoDetails = usePrefetchRepoDetails();
   const [orgInput, setOrgInput] = useState('');
   const [org, setOrg] = useState('');
 
@@ -65,6 +70,34 @@ export function ExploreScreen(): React.JSX.Element {
       fetchNextPage();
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const openRepoDetails = useCallback(
+    (repo: Repo) => {
+      navigation.navigate('RepoDetails', {
+        owner: repo.owner.login,
+        repo: repo.name,
+      });
+    },
+    [navigation],
+  );
+
+  const prefetchRepo = useCallback(
+    (repo: Repo) => {
+      prefetchRepoDetails(repo.owner.login, repo.name);
+    },
+    [prefetchRepoDetails],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: ListRenderItemInfo<Repo>) => (
+      <RepoCard
+        repo={item}
+        onPress={openRepoDetails}
+        onPressIn={prefetchRepo}
+      />
+    ),
+    [openRepoDetails, prefetchRepo],
+  );
 
   function renderFooter(): React.ReactElement | null {
     if (isFetchingNextPage) {

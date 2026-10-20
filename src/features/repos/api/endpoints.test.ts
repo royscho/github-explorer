@@ -25,10 +25,10 @@ function makeDto(overrides: Partial<RepoDto> = {}): RepoDto {
     stargazers_count: 1,
     forks_count: 1,
     open_issues_count: 1,
-    watchers_count: 1,
     created_at: '2013-05-24T16:15:54Z',
     updated_at: '2026-10-19T08:00:00Z',
     default_branch: 'main',
+    subscribers_count: 1,
     license: null,
     ...overrides,
   };

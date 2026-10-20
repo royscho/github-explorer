@@ -5,8 +5,13 @@ describe('repoKeys', () => {
     expect(repoKeys.all).toEqual(['repos']);
   });
 
-  it('builds an org list key prefixed by the root key', () => {
+  it('exposes a lists key shared by every org list query', () => {
+    expect(repoKeys.lists()).toEqual(['repos', 'list']);
+  });
+
+  it('builds an org list key prefixed by the lists key', () => {
     expect(repoKeys.orgList('facebook')).toEqual(['repos', 'list', 'facebook']);
+    expect(repoKeys.orgList('facebook').slice(0, 2)).toEqual(repoKeys.lists());
   });
 
   it('builds a detail key prefixed by the root key', () => {

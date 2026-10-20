@@ -29,7 +29,6 @@ export function mapRepo(dto: RepoDto): Repo {
     stars: dto.stargazers_count,
     forks: dto.forks_count,
     openIssues: dto.open_issues_count,
-    watchers: dto.watchers_count,
     createdAt: dto.created_at,
     updatedAt: dto.updated_at,
   };
@@ -40,5 +39,6 @@ export function mapRepoDetails(dto: RepoDto): RepoDetails {
     ...mapRepo(dto),
     defaultBranch: dto.default_branch,
     license: dto.license ? mapLicense(dto.license) : null,
+    watchers: dto.subscribers_count,
   };
 }

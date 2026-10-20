@@ -107,3 +107,56 @@ One entry per milestone, written by `/gen-step` (step 7). Source for `AI_USAGE.m
   (no throw, just an unbound `screen`), and a `jest.config.js` `setupFiles` override replacing
   rather than extending `@react-native/jest-preset`'s own setup is a sharp edge worth remembering
   for every future step that touches Jest config.
+
+## 04 — Repo details (2026-10-20)
+
+- Model(s): implementer Claude Sonnet 5 (Claude Code), reviewer code-reviewer (opus)
+- AI generated: step plan (`docs/steps/04-repo-details.md`), `RepoDetailsScreen` + its own
+  `getErrorMessage` utils, `useRepoDetails` (cache-scanned placeholder data) and
+  `usePrefetchRepoDetails` hooks, `RepoStats` and `RepoDetailsSkeleton` components, `RepoCard`
+  made pressable (`onPress`/`onPressIn`), `ScreenErrorBoundary` (the per-screen boundary deferred
+  from milestone 3), the `RepoDetails` route on `RootStack` with a header titled from the route
+  param, `repoKeys.lists()` added to the query-key factory, `formatDate`/`formatResetTime` moved
+  into `shared/utils`, plus the matching test for every file (200 tests after review fixes, up
+  from 191 on the first pass).
+- Changed / rejected by me: approved the step plan as drafted (deep linking re-deferred a third
+  time with that flagged explicitly as a risk rather than silently dropped; favorite toggle and
+  the offline banner left to their owning milestones, per the plan).
+- Reviewer findings: fixed 9, rejected 0; the review (full report in the step doc's Follow-ups)
+  found six real correctness/consistency bugs, all fixed before commit:
+  - `watchers` was silently duplicating `stars` — GitHub's `watchers_count` always equals
+    `stargazers_count`; the real figure, `subscribers_count`, is only reliable on the single-repo
+    endpoint. Moved `watchers` off the base `Repo` entirely, onto `RepoDetails`, sourced from
+    `subscribers_count`.
+  - A failed pull-to-refresh was replacing already-loaded repo details with a full-screen error,
+    because React Query keeps the last successful `data` across a failed background refetch while
+    still flipping `status` to `'error'` — the screen's check didn't account for that. Fixed to
+    match `ExploreScreen`'s existing "don't throw away data already paid for" pattern.
+  - The pull-to-refresh spinner was showing during the very first, placeholder-backed load, because
+    `placeholderData` makes React Query report `status: 'success'` (not `'pending'`) while the real
+    fetch is still in flight — `isRefetching` is derived from that and was `true` the whole time.
+  - `RepoCard`'s new `onPress`/`onPressIn` props were unstable (a fresh closure per cell per
+    render), defeating `RepoCard`'s own `memo`; changed the props to take the repo as an argument so
+    one stable function can be shared across every cell.
+  - `Linking.openURL`'s rejection was an unhandled promise; now logged through `shared/logger`.
+  - A hand-built `[...repoKeys.all, 'list']` prefix (bypassing the query-key factory, against
+    CLAUDE.md) became `repoKeys.lists()`, a new factory entry, with a defensive shape guard added
+    at the one call site that scans it.
+  - Smaller fixes: per-stat `accessibilityLabel`s on `RepoStats` (promised in the step's own test
+    list but missing), a hidden-from-accessibility assertion on `RepoDetailsSkeleton`, a real
+    `QueryErrorResetBoundary`-reset test on `ScreenErrorBoundary`, a loading-skeleton presence
+    assertion, and import-order/doc-wording nits.
+- Validation: lint / typecheck / tests (200 tests) all pass. **No manual device/simulator run this
+  step** — unlike milestone 3, which caught a real font-registration bug by screenshotting the iOS
+  simulator, this step's checks are lint/typecheck/tests only; the new screen, the placeholder→real
+  data transition, and the native-stack header title have not been visually confirmed on a
+  simulator or device.
+- Where AI was useful / risky: the `watchers`/`subscribers_count` bug is the standout — a data
+  correctness bug inherited from milestone 2's mapper, invisible until this milestone's UI actually
+  surfaced the field, and not the kind of thing a type system or a naive test (which would just
+  assert the mapper against its own made-up fixture numbers) catches on its own; it took reviewer
+  knowledge of a real GitHub API quirk to flag it. Risky spot: the placeholder-data status
+  semantics (`'success'` + `isPlaceholderData: true`, not `'pending'`) are easy to get wrong by
+  intuition, and did get wrong on the first pass in two different places (the error-precedence
+  check and the refresh-spinner) — worth remembering for any future `placeholderData` use in this
+  codebase.
