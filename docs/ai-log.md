@@ -535,7 +535,15 @@ queryClient.ts`, swapping `AppProviders`' `QueryClientProvider` for `PersistQuer
   **planned i18n via `i18next` + `react-i18next` with RTL support** as future work. Also ruled, when
   asked, that the theme picker and deep linking are **not in scope** and are described in DESIGN.md
   deliberately, to show they'd been considered rather than overlooked — so they're written up as
-  conscious scope cuts (with the groundwork each already has) rather than as gaps or TODOs.
+  conscious scope cuts (with the groundwork each already has) rather than as gaps or TODOs. After the
+  first commit, asked for **`.env` configuration** to be recorded as future work too, referring to it
+  as something already mentioned — it wasn't (grep confirmed no `.env`/`dotenv`/token mention anywhere
+  in the new docs; the repo's only "env" is RN's own `.xcode.env.local` in `.gitignore`), so I said so
+  rather than agreeing, then added it: §18 plus the `README.md`/`DECISIONS.md` scope entries, grounded
+  in the fact that `BASE_URL`/`TIMEOUT_MS` are module constants in `shared/api/httpClient.ts` and the
+  app holds no secrets at all today. Included the caveat that bounds the whole idea — a bundled token
+  is extractable from the IPA/APK, so `.env` is build-time config, not a secret store, and raising the
+  rate limit for real users ends at OAuth or a backend proxy.
 - Found while writing (no reviewer agent, so these came out of cross-checking the docs against the
   code):
   - **`docs/DESIGN.md` described two things in the present tense that don't exist.** §9/§3.2 said the

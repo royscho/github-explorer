@@ -150,6 +150,9 @@ Deliberately **not** built, to keep the time box honest — each was considered 
 - **Auth, private repos, write operations**; pixel-perfect design; E2E tests.
 - **i18n** — planned via `i18next` + `react-i18next` with RTL support through `I18nManager`
   (§18 has the specifics, including the handful of style properties an RTL pass would convert).
+- **`.env` configuration** — not needed yet: the app calls one unauthenticated read-only API and
+  holds no secrets. Planned via `react-native-config` once there's a Sentry DSN or a local-dev
+  GitHub token to hold (§18, including why a bundled token is never actually secret).
 
 Also see `docs/DESIGN.md` §17 (monitoring in production), §18 (future work) and §19 (risks and
 trade-offs).
