@@ -807,3 +807,50 @@ assignment brief.
   world, and "it has a test" said nothing here. Also worth keeping: the reviewer's own most
   substantial finding was half-right, and checking it took reading two platforms' native source —
   review output needs verifying exactly as much as implementation output does.
+
+## Fix — iOS tab double top inset (2026-10-21)
+
+Not a numbered milestone: a direct follow-up to PR #14's known, deferred finding — the reviewer's
+tab-mount claim refined in that round's entry. Found by the user running the app on an iOS
+simulator after that PR merged ("now i see the banner is not absolute it push the screen").
+
+- Model(s): implementer Claude Sonnet 5 (Claude Code)
+- The bug: `OfflineBanner` and tab screens are normal-flow siblings, so the banner genuinely pushes
+  content down — that part is correct, by design. On iOS the `Screen` below it then pads for the
+  status bar a second time, because `react-native-safe-area-context`'s iOS `SafeAreaView` reads its
+  inset from the root `SafeAreaProvider` (`RNCSafeAreaView.m:114`) regardless of where it actually
+  sits — unlike Android's, which measures the view's real overlap with the window insets
+  (`SafeAreaUtils.kt:73-83`) and self-corrects. A status-bar-height blank band between banner and
+  content, on the three tab screens, while offline, iOS only.
+- Fix: a generic `TopInsetConsumedProvider` / `useTopInsetConsumed()` in `shared/components`, with
+  no knowledge of what's above it — `shared/` can't depend on a feature. `Screen` drops `'top'` from
+  its edges while the context reports `true`. `features/device` pairs this with the banner in a new
+  `OfflineBannerBoundary` (`useOfflineMessage() !== null` → consumed), which `MainTabs.tsx`'s three
+  mounts now wrap around each screen in place of a bare `OfflineBanner`. `RootStack`/`RepoDetails`
+  untouched — its `Screen` already excludes `'top'` unconditionally (a header owns it, not something
+  only sometimes showing), so the context isn't needed there.
+- `useOfflineMessage()` is called a second time in `OfflineBannerBoundary` (also inside
+  `OfflineBanner` itself) rather than threaded through as a prop — a cheap selector plus a
+  synchronous MMKV read, both call sites re-render in the same tick off the same `isOnline` flip, and
+  it keeps `OfflineBanner` usable standalone, as `RootStack` still uses it.
+- A test-authoring note worth keeping: the first `Screen.test.tsx` draft asserted
+  `props.edges` against the array `Screen` passes to `SafeAreaView` (e.g. `['top', 'left',
+'right']`), and failed — `SafeAreaView` resolves that array into a per-edge `'additive' | 'off'`
+  map before it reaches the underlying native host node, which is what `getByTestId` actually
+  returns. Rewritten against that map. Stronger evidence than the original assertion would have
+  been, not weaker: it pins what really reaches the native layer rather than an intermediate value.
+- Validation: lint / typecheck / 349 tests (up from 342), two new suites (`Screen.test.tsx` — none
+  existed for `Screen` before this — and `OfflineBannerBoundary.test.tsx`). **Confirmed fixed by the
+  user on a real iOS simulator run**, after I verified the native source split (Android
+  self-corrects, iOS doesn't) but had no GUI simulator available in this sandbox to see it myself —
+  `simctl` could boot a device headlessly, but the run that actually confirmed the fix was the
+  user's, not mine.
+- Where AI was useful / risky: the useful half is the same pattern as the prior round — reading two
+  platforms' `SafeAreaView` source (Kotlin, then Objective-C) is what turned a plausible-sounding
+  review claim ("the shadow node makes this position-independent") into an accurate, platform-split
+  fix instead of a change that would have silently done nothing on Android while leaving iOS broken.
+  Risky/limiting: this fix shipped without the maintainer-level visual confirmation the PR #14
+  round's Android work got (installed package state, logcat, a real screenshot) — I verified the
+  mechanism, not the pixels, because the tooling to see the pixels wasn't available to me here. The
+  user's own simulator run is what actually closes that gap, and is recorded as such rather than
+  claimed as something I confirmed myself.

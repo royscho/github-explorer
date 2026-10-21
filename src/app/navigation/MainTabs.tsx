@@ -8,7 +8,7 @@ import { useTheme } from '@shared/theme';
 import { ExploreScreen } from '@features/repos';
 import type { Repo } from '@features/repos';
 import { FavoriteToggle, FavoritesScreen } from '@features/favorites';
-import { OfflineBanner } from '@features/device';
+import { OfflineBannerBoundary } from '@features/device';
 import { SettingsScreen } from '@features/settings';
 import { useMainTabsStyles } from '@app/hooks';
 
@@ -26,8 +26,9 @@ function renderCardFavoriteToggle(repo: Repo): React.JSX.Element {
 function ExploreScreenWithBoundary(): React.JSX.Element {
   return (
     <ScreenErrorBoundary>
-      <OfflineBanner />
-      <ExploreScreen renderFavoriteToggle={renderCardFavoriteToggle} />
+      <OfflineBannerBoundary>
+        <ExploreScreen renderFavoriteToggle={renderCardFavoriteToggle} />
+      </OfflineBannerBoundary>
     </ScreenErrorBoundary>
   );
 }
@@ -35,8 +36,9 @@ function ExploreScreenWithBoundary(): React.JSX.Element {
 function FavoritesScreenWithBoundary(): React.JSX.Element {
   return (
     <ScreenErrorBoundary>
-      <OfflineBanner />
-      <FavoritesScreen renderFavoriteToggle={renderCardFavoriteToggle} />
+      <OfflineBannerBoundary>
+        <FavoritesScreen renderFavoriteToggle={renderCardFavoriteToggle} />
+      </OfflineBannerBoundary>
     </ScreenErrorBoundary>
   );
 }
@@ -44,8 +46,9 @@ function FavoritesScreenWithBoundary(): React.JSX.Element {
 function SettingsScreenWithBoundary(): React.JSX.Element {
   return (
     <ScreenErrorBoundary>
-      <OfflineBanner />
-      <SettingsScreen />
+      <OfflineBannerBoundary>
+        <SettingsScreen />
+      </OfflineBannerBoundary>
     </ScreenErrorBoundary>
   );
 }

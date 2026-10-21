@@ -1,6 +1,10 @@
 import { useNetworkStore } from './store';
 
-export { OfflineBanner, DeviceInfoSection } from './components';
+export {
+  OfflineBanner,
+  OfflineBannerBoundary,
+  DeviceInfoSection,
+} from './components';
 export type { OfflineBannerProps } from './components';
 export { useDeviceNetworkMonitoring } from './hooks';
 
