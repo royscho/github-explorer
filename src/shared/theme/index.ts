@@ -7,4 +7,5 @@ export type {
   SpacingTokens,
   TypographyTokens,
   RadiusTokens,
+  ElevationTokens,
 } from './tokens';

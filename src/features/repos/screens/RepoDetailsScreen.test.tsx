@@ -164,11 +164,11 @@ describe('RepoDetailsScreen', () => {
     );
     await renderScreen();
     expect(await screen.findByText('facebook/react')).toBeOnTheScreen();
-    expect(await screen.findByText('⭐ 220k')).toBeOnTheScreen();
+    expect(await screen.findByText('220k')).toBeOnTheScreen();
     expect(screen.getAllByText('Loading…')).toHaveLength(2);
     // Watchers aren't known yet either, but there's no sentinel value for it to leak — the stat
     // simply doesn't render until the real fetch resolves (RepoStats omits it when undefined).
-    expect(screen.queryByText(/watchers/)).toBeNull();
+    expect(screen.queryByLabelText(/watchers/)).toBeNull();
     // The real (non-refresh) first fetch is still in flight here, but since the screen already has
     // placeholder content to show, the pull-to-refresh spinner must not also be spinning on top of it.
     const refreshControl = await screen.findByTestId('repo-details-refresh');
@@ -188,7 +188,7 @@ describe('RepoDetailsScreen', () => {
     ).toBeOnTheScreen();
     expect(await screen.findByText('main')).toBeOnTheScreen();
     expect(await screen.findByText('MIT License')).toBeOnTheScreen();
-    expect(await screen.findByText('6.7k watchers')).toBeOnTheScreen();
+    expect(await screen.findByLabelText('6.7k watchers')).toBeOnTheScreen();
     expect(await screen.findByText(/^Created /)).toBeOnTheScreen();
     expect(await screen.findByText(/^Updated /)).toBeOnTheScreen();
   });

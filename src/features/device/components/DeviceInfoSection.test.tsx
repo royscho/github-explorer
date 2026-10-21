@@ -1,7 +1,7 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { render, screen, waitFor, within } from '@testing-library/react-native';
 
-import { ThemeProvider } from '@shared/theme';
+import { ThemeProvider, lightTheme } from '@shared/theme';
 import { logger } from '@shared/logger';
 
 import { getDeviceInfo, isLowPowerMode } from '../native';
@@ -88,5 +88,79 @@ describe('DeviceInfoSection', () => {
     expect(screen.getByText('Offline')).toBeOnTheScreen();
     expect(screen.getByText('Cellular')).toBeOnTheScreen();
     expect(screen.getByText('Yes')).toBeOnTheScreen();
+  });
+
+  it('groups device info and network state into separate cards', async () => {
+    mockGetDeviceInfo.mockResolvedValue({
+      model: 'iPhone 17',
+      osVersion: '27.0',
+      appVersion: '1.0',
+      buildNumber: '42',
+    });
+    mockIsLowPowerMode.mockResolvedValue(false);
+    useNetworkStore.setState({
+      isOnline: true,
+      connectionType: 'wifi',
+      isExpensive: false,
+    });
+
+    await renderSection();
+
+    const deviceCard = await screen.findByTestId('device-info-group');
+    const networkCard = screen.getByTestId('network-info-group');
+
+    expect(
+      within(deviceCard).getByRole('header', { name: 'Device' }),
+    ).toBeOnTheScreen();
+    expect(
+      within(networkCard).getByRole('header', { name: 'Network' }),
+    ).toBeOnTheScreen();
+
+    await waitFor(() => {
+      expect(
+        within(deviceCard).getByLabelText('Model: iPhone 17'),
+      ).toBeOnTheScreen();
+    });
+    expect(
+      within(deviceCard).getByLabelText('Low power mode: Off'),
+    ).toBeOnTheScreen();
+    expect(within(networkCard).queryByText('Model')).toBeNull();
+
+    expect(
+      within(networkCard).getByLabelText('Status: Online'),
+    ).toBeOnTheScreen();
+    expect(
+      within(networkCard).getByLabelText('Connection: Wi-Fi'),
+    ).toBeOnTheScreen();
+    expect(within(deviceCard).queryByText('Status')).toBeNull();
+  });
+
+  it('colors the status pill green when online and neutral when offline', async () => {
+    mockGetDeviceInfo.mockResolvedValue({
+      model: 'iPhone 17',
+      osVersion: '27.0',
+      appVersion: '1.0',
+      buildNumber: '42',
+    });
+    mockIsLowPowerMode.mockResolvedValue(false);
+
+    await renderSection();
+
+    expect(await screen.findByTestId('status-dot-Status')).toHaveStyle({
+      backgroundColor: lightTheme.colors.success,
+    });
+    expect(screen.getByTestId('status-dot-Low power mode')).toHaveStyle({
+      backgroundColor: lightTheme.colors.textSecondary,
+    });
+
+    useNetworkStore.setState({
+      isOnline: false,
+      connectionType: 'wifi',
+      isExpensive: false,
+    });
+
+    expect(await screen.findByTestId('status-dot-Status')).toHaveStyle({
+      backgroundColor: lightTheme.colors.textSecondary,
+    });
   });
 });

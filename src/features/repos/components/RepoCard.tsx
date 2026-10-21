@@ -1,12 +1,20 @@
 import React, { memo } from 'react';
 import { Pressable, View } from 'react-native';
 
-import { Text } from '@shared/components';
-import { formatCompactNumber, formatRelativeTime } from '@shared/utils';
+import { Card, Text } from '@shared/components';
+import { useTheme } from '@shared/theme';
+import {
+  formatCompactNumber,
+  formatRelativeTime,
+  hexToAlpha,
+} from '@shared/utils';
 
+import { getLanguageColor } from '../constants';
 import { useRepoCardStyles } from '../hooks';
 import type { Repo } from '../types';
 import { RepoStats } from './RepoStats';
+
+const LANGUAGE_PILL_TINT_ALPHA = 0.12;
 
 export interface RepoCardProps {
   repo: Repo;
@@ -43,6 +51,8 @@ function RepoCardComponent({
   renderFavoriteToggle,
 }: RepoCardProps): React.JSX.Element {
   const styles = useRepoCardStyles();
+  const theme = useTheme();
+  const languageColor = getLanguageColor(repo.language);
 
   function handlePress(): void {
     onPress(repo);
@@ -55,39 +65,64 @@ function RepoCardComponent({
   return (
     <View style={styles.wrapper}>
       <Pressable
-        style={styles.container}
         accessible
         accessibilityRole="button"
         accessibilityLabel={buildAccessibilityLabel(repo)}
         onPress={handlePress}
         onPressIn={handlePressIn}
       >
-        <Text variant="title" numberOfLines={1}>
-          {repo.name}
-        </Text>
-        <Text
-          variant="body"
-          color="secondary"
-          style={styles.description}
-          numberOfLines={2}
-        >
-          {repo.description ?? 'No description'}
-        </Text>
-        <View style={styles.metaRow}>
-          {repo.language ? (
-            <Text variant="caption" color="secondary">
-              {repo.language}
-            </Text>
-          ) : null}
-          <RepoStats
-            stars={repo.stars}
-            forks={repo.forks}
-            openIssues={repo.openIssues}
-          />
-        </View>
-        <Text variant="caption" color="secondary">
-          updated {formatRelativeTime(repo.updatedAt)}
-        </Text>
+        <Card style={styles.container}>
+          <Text variant="title" numberOfLines={1}>
+            {repo.name}
+          </Text>
+          <Text
+            variant="body"
+            color="secondary"
+            style={styles.description}
+            numberOfLines={2}
+          >
+            {repo.description ?? 'No description'}
+          </Text>
+          <View style={styles.metaRow}>
+            {repo.language ? (
+              <View
+                style={[
+                  styles.languagePill,
+                  languageColor
+                    ? {
+                        backgroundColor: hexToAlpha(
+                          languageColor,
+                          LANGUAGE_PILL_TINT_ALPHA,
+                        ),
+                      }
+                    : null,
+                ]}
+              >
+                <View
+                  testID="language-dot"
+                  style={[
+                    styles.languageDot,
+                    {
+                      backgroundColor:
+                        languageColor ?? theme.colors.textSecondary,
+                    },
+                  ]}
+                />
+                <Text variant="caption" color="secondary">
+                  {repo.language}
+                </Text>
+              </View>
+            ) : null}
+            <RepoStats
+              stars={repo.stars}
+              forks={repo.forks}
+              openIssues={repo.openIssues}
+            />
+          </View>
+          <Text variant="caption" color="secondary">
+            updated {formatRelativeTime(repo.updatedAt)}
+          </Text>
+        </Card>
       </Pressable>
       {renderFavoriteToggle && (
         // A sibling of the card's own Pressable, not nested inside it — nesting touchables makes

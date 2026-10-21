@@ -4,3 +4,4 @@ export * from './formatCompactNumber';
 export * from './formatDate';
 export * from './formatResetTime';
 export * from './formatTime';
+export * from './hexToAlpha';

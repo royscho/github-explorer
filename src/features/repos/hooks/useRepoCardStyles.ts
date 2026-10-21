@@ -7,11 +7,6 @@ export const useRepoCardStyles = makeStyles(theme => ({
     marginVertical: theme.spacing.xs,
   },
   container: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radii.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    padding: theme.spacing.md,
     gap: theme.spacing.xs,
   },
   description: {
@@ -20,7 +15,23 @@ export const useRepoCardStyles = makeStyles(theme => ({
   metaRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'center',
     gap: theme.spacing.sm,
+  },
+  languagePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+    borderRadius: theme.radii.lg,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    alignSelf: 'flex-start',
+  },
+  languageDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: theme.spacing.xs,
   },
   favoriteToggle: {
     position: 'absolute',

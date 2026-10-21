@@ -6,4 +6,9 @@ export const useRepoStatsStyles = makeStyles(theme => ({
     flexWrap: 'wrap',
     gap: theme.spacing.sm,
   },
+  stat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
 }));

@@ -5,4 +5,5 @@ export { useEmptyViewStyles } from './useEmptyViewStyles';
 export { useLoadingViewStyles } from './useLoadingViewStyles';
 export { useListFooterLoaderStyles } from './useListFooterLoaderStyles';
 export { useErrorBoundaryStyles } from './useErrorBoundaryStyles';
+export { useCardStyles } from './useCardStyles';
 export { useDebounce } from './useDebounce';

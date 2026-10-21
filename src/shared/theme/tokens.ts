@@ -31,12 +31,21 @@ export interface RadiusTokens {
   lg: number;
 }
 
+export interface ElevationTokens {
+  shadowColor: string;
+  shadowOffset: { width: number; height: number };
+  shadowOpacity: number;
+  shadowRadius: number;
+  elevation: number;
+}
+
 export interface Theme {
   mode: 'light' | 'dark';
   colors: ColorTokens;
   spacing: SpacingTokens;
   typography: TypographyTokens;
   radii: RadiusTokens;
+  elevation: { card: ElevationTokens };
 }
 
 const spacing: SpacingTokens = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 };
@@ -48,6 +57,24 @@ const typography: TypographyTokens = {
 };
 
 const radii: RadiusTokens = { sm: 4, md: 8, lg: 16 };
+
+// Dark-mode shadows read as almost invisible against a dark background, so the dark card token
+// compensates with a higher opacity/elevation rather than relying on the same values as light.
+const lightCardElevation: ElevationTokens = {
+  shadowColor: '#000000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.08,
+  shadowRadius: 6,
+  elevation: 2,
+};
+
+const darkCardElevation: ElevationTokens = {
+  shadowColor: '#000000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.4,
+  shadowRadius: 6,
+  elevation: 4,
+};
 
 export const lightTheme: Theme = {
   mode: 'light',
@@ -66,6 +93,7 @@ export const lightTheme: Theme = {
   spacing,
   typography,
   radii,
+  elevation: { card: lightCardElevation },
 };
 
 export const darkTheme: Theme = {
@@ -85,4 +113,5 @@ export const darkTheme: Theme = {
   spacing,
   typography,
   radii,
+  elevation: { card: darkCardElevation },
 };

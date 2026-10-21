@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, Text } from 'react-native';
 import { render, screen, userEvent } from '@testing-library/react-native';
 
-import { ThemeProvider } from '@shared/theme';
+import { ThemeProvider, lightTheme } from '@shared/theme';
 
 import type { Repo } from '../types';
 import { RepoCard } from './RepoCard';
@@ -69,11 +69,25 @@ describe('RepoCard', () => {
     expect(screen.queryByText('JavaScript')).toBeNull();
   });
 
+  it('colors the language dot from the known-language map', async () => {
+    await renderCard({ ...baseRepo, language: 'TypeScript' });
+    expect(await screen.findByTestId('language-dot')).toHaveStyle({
+      backgroundColor: '#3178C6',
+    });
+  });
+
+  it('falls back to a neutral dot color for an unmapped language', async () => {
+    await renderCard({ ...baseRepo, language: 'COBOL' });
+    expect(await screen.findByTestId('language-dot')).toHaveStyle({
+      backgroundColor: lightTheme.colors.textSecondary,
+    });
+  });
+
   it('renders star, fork and open-issue counts', async () => {
     await renderCard(baseRepo);
-    expect(await screen.findByText('⭐ 220k')).toBeOnTheScreen();
-    expect(await screen.findByText('45k forks')).toBeOnTheScreen();
-    expect(await screen.findByText('900 issues')).toBeOnTheScreen();
+    expect(await screen.findByText('220k')).toBeOnTheScreen();
+    expect(await screen.findByText('45k')).toBeOnTheScreen();
+    expect(await screen.findByText('900')).toBeOnTheScreen();
   });
 
   it('renders relative "updated" text', async () => {
