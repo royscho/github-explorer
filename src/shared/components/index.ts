@@ -1,4 +1,5 @@
 export { Screen } from './Screen';
+export { Card } from './Card';
 export { Text } from './Text';
 export type { TextVariant } from './Text';
 export { ErrorView } from './ErrorView';

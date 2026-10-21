@@ -56,7 +56,7 @@ The user types a GitHub organization (`facebook`, `vercel`, …), browses its re
 - `src/features/favorites/` — Zustand+MMKV store, `useIsFavorite` / `useToggleFavorite`, FavoriteButton, FavoritesScreen.
 - `src/features/device/` — `native/` (typed TurboModule wrapper), network store, `useNetworkStatus` / `useDeviceInfo`, OfflineBanner, DeviceInfoSection.
 - `src/features/settings/` — settings store (theme mode), SettingsScreen.
-- `src/shared/` — `api/` (httpClient, typed errors, rate limit), `storage/` (MMKV instance, Zustand adapter, Query persister), `components/` (Screen, Text, Icon, ErrorView, EmptyView, LoadingView, ListFooterLoader, ErrorBoundary), `hooks/`, `utils/` (date, number and `Link`-header helpers), `theme/` (tokens, provider, `makeStyles`), `logger/`.
+- `src/shared/` — `api/` (httpClient, typed errors, rate limit), `storage/` (MMKV instance, Zustand adapter, Query persister), `components/` (Screen, Text, Icon, Card, ErrorView, EmptyView, LoadingView, ListFooterLoader, ErrorBoundary), `hooks/`, `utils/` (date, number and `Link`-header helpers), `theme/` (tokens, provider, `makeStyles`), `logger/`.
 - `specs/NativeDeviceNetwork.ts` — Codegen spec; Kotlin implementation under `android/…/devicenetwork/`, Swift (+ ObjC++ glue) under `ios/DeviceNetwork/`.
 
 Path aliases `@app/*`, `@features/*`, `@shared/*` via `tsconfig.json` + `babel-plugin-module-resolver`.
@@ -166,7 +166,7 @@ Both inputs are designed to avoid unnecessary API calls:
 
 ## 9. Theming & styling
 
-- Light and dark token sets in `shared/theme`: colors, spacing, typography, radii.
+- Light and dark token sets in `shared/theme`: colors, spacing, typography, radii, elevation (card shadow/`elevation` per theme, exposed via the shared `Card` component).
 - Theme mode `system | light | dark`, default `system` (`useColorScheme`); the choice is saved in `settingsStore` and survives restart. The same theme drives `NavigationContainer` (headers, tab bar) and `StatusBar`.
 - **Styles are declared with `makeStyles(theme => …)` and consumed via `useStyles()`.** `makeStyles` calls `StyleSheet.create` **once per theme** and caches it at module level, so every instance of a component (all list cards) shares one style object and styles rebuild only when the theme changes — cheaper than a `useMemo` per instance, and components stay free of theme plumbing. No inline style objects, no hard-coded colors.
 - **No UI kit.** Only what navigation requires (`react-native-screens`, `react-native-safe-area-context`), FlashList and `@react-native-vector-icons/ionicons` (TurboModule-based, built for the New Architecture); components are hand-built in `shared/components`.
@@ -284,8 +284,8 @@ Native unit tests (JUnit/XCTest) and E2E (Maestro/Detox) are future work.
 | 6   | Favorites               | Zustand + MMKV store, toggle, Favorites tab                                                          |
 | 7   | Native module           | Codegen spec, Kotlin + Swift, events, OfflineBanner, Settings → Device                               |
 | 8   | Offline                 | Persisted query cache, offline UX                                                                    |
-| 9   | Docs                    | `README.md`, `DECISIONS.md`, `AI_USAGE.md`                                                           |
-| 10  | UI polish               | Card elevation, language pill, icon stats, Settings → Device as grouped cards                        |
+| 9   | UI polish               | Card elevation, language pill, icon stats, Settings → Device as grouped cards                        |
+| 10  | Docs                    | `README.md`, `DECISIONS.md`, `AI_USAGE.md`                                                           |
 
 ---
 

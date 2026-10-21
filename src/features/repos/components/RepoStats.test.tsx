@@ -16,19 +16,19 @@ function renderStats(props: Partial<React.ComponentProps<typeof RepoStats>>) {
 describe('RepoStats', () => {
   it('renders formatted stars, forks and open issues', async () => {
     await renderStats({});
-    expect(await screen.findByText('⭐ 220k')).toBeOnTheScreen();
-    expect(await screen.findByText('45k forks')).toBeOnTheScreen();
-    expect(await screen.findByText('900 issues')).toBeOnTheScreen();
+    expect(await screen.findByText('220k')).toBeOnTheScreen();
+    expect(await screen.findByText('45k')).toBeOnTheScreen();
+    expect(await screen.findByText('900')).toBeOnTheScreen();
   });
 
   it('renders watchers when passed', async () => {
     await renderStats({ watchers: 220000 });
-    expect(await screen.findByText('220k watchers')).toBeOnTheScreen();
+    expect(await screen.findByLabelText('220k watchers')).toBeOnTheScreen();
   });
 
   it('omits watchers when not passed', async () => {
     await renderStats({});
-    expect(screen.queryByText(/watchers/)).toBeNull();
+    expect(screen.queryByLabelText(/watchers/)).toBeNull();
   });
 
   it('exposes an accessible label per stat', async () => {

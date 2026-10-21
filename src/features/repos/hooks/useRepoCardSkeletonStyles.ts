@@ -1,14 +1,11 @@
 import { makeStyles } from '@shared/theme';
 
 export const useRepoCardSkeletonStyles = makeStyles(theme => ({
-  container: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radii.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    padding: theme.spacing.md,
+  wrapper: {
     marginHorizontal: theme.spacing.md,
     marginVertical: theme.spacing.xs,
+  },
+  container: {
     gap: theme.spacing.sm,
   },
   bar: {

@@ -475,3 +475,47 @@ queryClient.ts`, swapping `AppProviders`' `QueryClientProvider` for `PersistQuer
   from reading the sync persister's own deprecation notice, not from the step plan — correct in
   hindsight, but worth being more explicit about this kind of substitution before writing code next
   time, rather than resolving it silently and only documenting it afterward.
+
+## 09 — UI polish (2026-10-21)
+
+- Model(s): implementer Claude Sonnet 5 (Claude Code), reviewer code-reviewer (opus)
+- AI generated: step plan (`docs/steps/09-ui-polish.md`), a new `elevation` theme token
+  (`shared/theme/tokens.ts`) and shared `Card` component (`shared/components/Card.tsx` +
+  `shared/hooks/useCardStyles.ts`) for the elevated-surface look, `RepoCard`/`RepoCardSkeleton`
+  switched from a bordered box to `Card`, a themed language pill, `RepoStats` switched from an
+  emoji/text-suffix layout to `Ionicons` glyphs, and `DeviceInfoSection` regrouped into two `Card`s
+  ("Device", "Network") with `accessibilityRole="header"` titles — plus the matching test updates
+  (`Card.test.tsx` new; `RepoCard.test.tsx`, `RepoStats.test.tsx`, `RepoDetailsScreen.test.tsx`,
+  `DeviceInfoSection.test.tsx` updated for the new visible text/structure).
+- Changed / rejected by me: mid-step, swapped milestone 9/10 in `docs/DESIGN.md` (UI polish before
+  Docs, not after) — a planning decision, not a code review outcome.
+- Reviewer findings: fixed 6 (DESIGN.md §3.2/§9 left undocumented after adding `Card`/`elevation`;
+  the grouping test only checked both headers existed, not which rows sat in which card; stat star
+  icon reused the same filled-`star` glyph as the favorite toggle, risking visual confusion; repeated
+  `size={14}` on every stat icon; `Card.test.tsx` hard-coded `borderRadius: 8` instead of referencing
+  the theme token; "Network" card had a redundant "Network" row label under the "Network" title),
+  rejected 0.
+- After the review pass, the user shared two "before/after" mockup images and asked for "a little
+  coloring like in the images." Added: `shared/utils/hexToAlpha.ts` (hex+alpha → `rgba()` helper,
+  +test), a bounded ~15-language color map (`features/repos/constants.ts`, +test) for the language
+  pill's dot/tint, tinted circular icon badges on each Settings card header (accent for Device,
+  success for Network), and a `tone?: 'success' | 'neutral'` option on `DeviceInfoSection`'s
+  `InfoRow` that renders "Status"/"Low power mode" as a small dot + tinted pill. Flagged to the user
+  before implementing: the per-language color map is a deliberate, scoped exception to CLAUDE.md's
+  "no hard-coded colors" rule (a data-driven indicator, the same convention GitHub itself uses, not
+  a theme color hardcoded in a component) — user confirmed, chose the per-language map over a
+  single-accent-color alternative. New tests: `hexToAlpha.test.ts`, `constants.test.ts`, plus cases
+  in `RepoCard.test.tsx` (mapped vs. unmapped language dot color) and `DeviceInfoSection.test.tsx`
+  (status pill tone follows online state).
+- Validation: lint / typecheck / tests (330 tests, up from 319 before this step) all pass. No manual
+  device/simulator run performed in this session — automated checks only.
+- Where AI was useful / risky: the review's "Network" card having both a "Network" title and a
+  "Network" row label (so the row's own accessibility label and the card's header said the same
+  word twice) was a small but real redundancy a first pass missed; renaming the row to "Status" also
+  happened to match the user's own mockup exactly, a useful cross-check. Risky spot: the coloring
+  pass introduces per-instance inline `style={[...]}` arrays computed from runtime data (language,
+  online state) rather than pure `makeStyles` theme functions, which the project's styling rule reads
+  as close to "no inline style objects" — justified here by existing precedent (`OfflineBanner`'s
+  dynamic `paddingTop`) and the fact that these values are genuinely data-dependent, not static
+  design tokens, but worth re-confirming this reading holds if a future step wants to add more
+  data-driven coloring.
