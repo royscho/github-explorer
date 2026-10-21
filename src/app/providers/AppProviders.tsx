@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 
 import { ErrorBoundary } from '@shared/components';
+import { queryPersistOptions } from '@shared/storage';
 import { ThemeProvider } from '@shared/theme';
 import { useDeviceNetworkMonitoring } from '@features/device';
 
@@ -20,11 +21,14 @@ export function AppProviders({
 
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={queryPersistOptions}
+      >
         <ThemeProvider>
           <ErrorBoundary>{children}</ErrorBoundary>
         </ThemeProvider>
-      </QueryClientProvider>
+      </PersistQueryClientProvider>
     </SafeAreaProvider>
   );
 }

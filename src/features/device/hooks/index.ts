@@ -1,4 +1,5 @@
 export { useNetworkStatus } from './useNetworkStatus';
+export { useOfflineMessage } from './useOfflineMessage';
 export { useDeviceNetworkMonitoring } from './useDeviceNetworkMonitoring';
 export { useDeviceInfo } from './useDeviceInfo';
 export type { DeviceInfoData, UseDeviceInfoResult } from './useDeviceInfo';

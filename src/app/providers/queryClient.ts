@@ -7,6 +7,7 @@ import {
   RateLimitError,
 } from '@shared/api';
 import { logger } from '@shared/logger';
+import { recordSync } from '@shared/storage';
 
 const MAX_RETRIES = 3;
 
@@ -37,6 +38,8 @@ export function createQueryClient(): QueryClient {
         }
         logger.error(error, { queryKey: query.queryKey });
       },
+      // §11: the timestamp the offline banner shows ("showing data from HH:MM") once offline.
+      onSuccess: () => recordSync(),
     }),
     defaultOptions: {
       queries: {

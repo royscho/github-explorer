@@ -90,6 +90,7 @@ function mockResult(
     isPlaceholderData: false,
     isRefetching: false,
     refetch: jest.fn(),
+    isPaused: false,
     ...overrides,
   };
 }
@@ -129,6 +130,21 @@ describe('RepoDetailsScreen', () => {
         includeHiddenElements: true,
       }),
     ).toBeOnTheScreen();
+  });
+
+  // §11: opening a repo with no cached list item to use as placeholder data pauses (rather than
+  // fails) while offline — this must not show an endless loading skeleton that never resolves.
+  it('shows an offline message instead of an endless skeleton when nothing is cached and offline', async () => {
+    useRepoDetails.mockReturnValue(
+      mockResult({ status: 'pending', repoDetails: undefined, isPaused: true }),
+    );
+    await renderScreen();
+    expect(
+      await screen.findByText(
+        "You're offline — this will load once you're back online",
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.queryByTestId('repo-details-skeleton')).toBeNull();
   });
 
   it('shows known fields immediately from placeholder data while still filling in watchers/default branch/license', async () => {

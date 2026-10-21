@@ -79,6 +79,7 @@ export function ExploreScreen({
     fetchNextPage,
     refetch,
     isRefetching,
+    isPaused,
   } = useOrgRepos(org);
 
   const filteredRepos = useMemo(
@@ -229,6 +230,14 @@ export function ExploreScreen({
     if (!org) {
       return (
         <EmptyView message="Search a GitHub organization to see its repositories" />
+      );
+    }
+
+    // §11: a first search for an org with nothing cached yet pauses (rather than fails) while
+    // offline — an endless skeleton would otherwise never resolve into anything.
+    if (status === 'pending' && isPaused) {
+      return (
+        <ErrorView message="You're offline — search will run once you're back online" />
       );
     }
 

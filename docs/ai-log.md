@@ -384,3 +384,94 @@ rejects` / `…when the seed getNetworkState rejects`) by interleaving with thei
   module can't exercise at all — they compile and typecheck but have had no real connectivity-switch
   or teardown-race test on a device since being written; worth a manual check before relying on
   them being correct in practice.
+
+## 08 — Offline (2026-10-21)
+
+- Model(s): implementer Claude Sonnet 5 (Claude Code), reviewer code-reviewer (opus)
+- AI generated: step plan (`docs/steps/08-offline.md`), `shared/storage/queryPersister.ts`
+  (`createAsyncStoragePersister` over a direct MMKV adapter, `queryPersistOptions`),
+  `shared/storage/lastSynced.ts`, `shared/utils/formatTime.ts`, `features/device/hooks/
+useOfflineMessage.ts`, the `QueryCache.onSuccess → recordSync()` wiring in `app/providers/
+queryClient.ts`, swapping `AppProviders`' `QueryClientProvider` for `PersistQueryClientProvider`,
+  `OfflineBanner`'s "showing data from HH:MM" copy, and the matching test for every file (312 tests
+  after review fixes, up from 304 on the first pass).
+- Changed / rejected by me: approved the step plan as drafted; asked for two new dependencies
+  (`@tanstack/query-sync-storage-persister`/`@tanstack/react-query-persist-client`, not literally
+  named in `docs/DESIGN.md` but implementing exactly the `persistQueryClient` mechanism §11
+  describes) before installing them, per `CLAUDE.md`. Mid-step, switched the sync persister for the
+  non-deprecated async one (see Reviewer findings) without a separate approval round — a same-intent
+  implementation substitution, not new scope.
+- Reviewer findings: fixed 8, nits fixed 4, rejected 0.
+  - **The dehydration filter (`shouldDehydrateQuery: status === 'success'`) would silently drop
+    already-cached data the moment a later background refetch failed** (e.g. a rate limit, which
+    §13 already says not to retry) — directly contradicting §11's actual goal of keeping the last
+    successful data visible while offline, since every save dehydrates and overwrites the whole
+    cache. Changed the filter to "has ever loaded data" (`query.state.data !== undefined`), with a
+    regression test for a query that succeeded once and then failed a refetch.
+  - The "showing data from HH:MM" timestamp had no upper bound, so it could show a specific time for
+    data that no longer exists (after the persisted cache aged past its own 24h `maxAge`, or was
+    busted by an app-version bump) — gated the banner's message to the same `QUERY_CACHE_MAX_AGE`,
+    falling back to the plain "You're offline" once the last sync is older than that.
+  - `OfflineBanner` read `getLastSyncedAt()` directly, breaking `CLAUDE.md`'s
+    `components → hooks → store/shared` rule — moved that logic into a new `useOfflineMessage()`
+    hook in `features/device/hooks`, which the component just renders.
+  - Added a direct dependency on `@tanstack/query-persist-client-core` purely for a type that
+    `@tanstack/react-query-persist-client` already re-exports — removed it.
+  - Missing restore-failure-path tests: a persisted client saved under a different `buster`, and
+    one older than `maxAge`, should both fail to restore — §11's actual requirements, not just the
+    happy path. Added both to `AppProviders.test.tsx`.
+  - Several tests (`lastSynced`, `OfflineBanner`, `AppProviders`) silently depended on run order
+    because the in-memory MMKV mock isn't reset between tests in the same file — added
+    `beforeEach(() => mmkv.clearAll())` to each.
+  - `docs/ai-log.md` wasn't updated yet at review time — this entry.
+  - Nits fixed: a cast-based fake `Query` in `queryPersister.test.ts` replaced with a real one built
+    through `QueryClient.fetchQuery`; `formatTime`/`formatResetTime` duplicated the same
+    `Intl.DateTimeFormat` call — `formatResetTime` now delegates to `formatTime`; the storage
+    adapter in `queryPersister.ts` was built by re-wrapping `zustandMmkvStorage` (a type mismatch
+    workaround) instead of the plain `mmkv` instance directly — simplified; the step doc's wording
+    overstated the persistence restore as happening "before screens mount" (`PersistQueryClientProvider`
+    actually gates `useQuery`/`useInfiniteQuery` via `isRestoring`, not mounting itself) — corrected.
+  - Flagged but not changed, documented instead: §11's "last viewed list … renders immediately"
+    isn't fully achieved — `ExploreScreen`'s `org`/`nameFilter` stay local `useState`, so a cold
+    restart still opens on the empty search state even though a resubmitted org's data is sitting
+    restored in cache. Persisting "last searched org" is real new scope (same call step 07 made for
+    the theme-picker gap), not folded in here uninvited; recorded in the step doc's Risks/Out of
+    scope instead. Also documented: the global (not per-query) last-synced timestamp can show a
+    technically-correct-but-misleading time when two different orgs/repos were viewed at different
+    times; and a request already in flight at the moment of going offline can resolve a tick after
+    the banner's one-time read, lagging by one successful fetch until the next re-render.
+- Found and fixed by the user, manually, after the review pass: ran the app on an iPhone 18 Pro
+  simulator (`npx react-native run-ios`) and found that searching an org with nothing cached yet,
+  while offline, hung on the loading skeleton forever instead of showing anything — a real bug the
+  mocked-hook screen tests couldn't have caught, since none of them drove a query through React
+  Query's actual pause/resume state machine. Root cause: React Query _pauses_ (not fails) a fetch
+  while offline, which `ExploreScreen`/`RepoDetailsScreen` never distinguished from "still fetching"
+  in their `status === 'pending'` check. Fixed by adding `isPaused` to `useOrgRepos`/
+  `useRepoDetails` and a new offline branch in both screens' `renderContent()`, with new tests in
+  `useOrgRepos.test.ts`, `useRepoDetails.test.tsx`, `ExploreScreen.test.tsx`, and
+  `RepoDetailsScreen.test.tsx` (316 tests after this fix, up from 312). Full writeup in the step
+  doc's new "Follow-ups" section. Separately during the same manual session: confirmed
+  `NWPathMonitor` sometimes doesn't re-fire its "back online" event in the iOS Simulator specifically
+  (reloading the app — which re-seeds state the same way a cold launch does — immediately showed
+  "online" correctly) — a Simulator-only quirk, not a code bug, and not something app code can fix;
+  noted as a testing-methodology caveat rather than changed.
+- Validation: lint / typecheck / tests (316 tests, up from 304 before any fixes) all pass. Manual
+  check: built and ran the app on an iPhone 18 Pro simulator; confirmed the offline banner, the
+  fixed stuck-search state, and (after reload) the reconnect behavior, all as described above.
+- Where AI was useful / risky: the dehydration-filter bug is the most consequential _automated_
+  finding of this review — a plausible-looking, DESIGN-quoting one-line filter
+  (`status === 'success'`) that would have quietly broken the exact "keep working with the last
+  successful data while offline" behavior the product owner asked for by name, and nothing in the
+  first-pass test suite caught it because every test used queries that only ever succeeded or only
+  ever failed, never both in sequence. The stuck-loading bug the user found manually afterward is
+  the more important lesson of the two, though: it's a second instance of the same root cause as
+  milestone 06's MMKV-persistence bug (`docs/ai-log.md` #06) — a behavior that depends on a real
+  state machine (there, native module linkage; here, React Query's online/offline pause) that every
+  mocked-hook test in the suite sidesteps by construction, so a passing test suite said nothing
+  about it either way. Worth treating "does this path actually traverse the real pause/offline
+  machinery, or just assert against a hand-set mock value" as a standing question for any future
+  offline/network-dependent step, not just a one-off catch. Risky spot, unrelated: picking the async
+  persister over the (more literally MMKV-shaped) sync one was a judgment call made mid-implementation
+  from reading the sync persister's own deprecation notice, not from the step plan — correct in
+  hindsight, but worth being more explicit about this kind of substitution before writing code next
+  time, rather than resolving it silently and only documenting it afterward.

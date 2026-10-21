@@ -1,5 +1,9 @@
 import React from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  onlineManager,
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react-native';
 
 import { NotFoundError } from '@shared/api';
@@ -53,6 +57,24 @@ describe('useOrgRepos', () => {
       wrapper: createWrapper(),
     });
     expect(result.current.status).toBe('pending');
+    expect(result.current.isPaused).toBe(false);
+  });
+
+  // §11: a first search for an org with nothing cached yet pauses (rather than fails or hangs
+  // mid-fetch) while offline.
+  it('reports isPaused for a first, uncached search while offline', async () => {
+    onlineManager.setOnline(false);
+    try {
+      mockFetchOrgRepos.mockReturnValue(new Promise(() => {}));
+      const { result } = await renderHook(() => useOrgRepos('facebook'), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.isPaused).toBe(true));
+      expect(result.current.status).toBe('pending');
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 
   it('flattens repos across pages and reports hasNextPage from the last page', async () => {

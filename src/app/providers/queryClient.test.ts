@@ -5,6 +5,9 @@ import {
   RateLimitError,
 } from '@shared/api';
 import { logger } from '@shared/logger';
+// Spied directly on the defining module — `@shared/storage`'s barrel re-export is a non-
+// configurable getter in the compiled output, which `jest.spyOn` can't redefine.
+import * as lastSynced from '@shared/storage/lastSynced';
 
 import { createQueryClient } from './queryClient';
 
@@ -82,6 +85,38 @@ describe('createQueryClient', () => {
       .fetchQuery({
         queryKey: ['cancelled'],
         queryFn: () => Promise.reject(abortError),
+      })
+      .catch(() => {});
+
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it('records a sync timestamp when a query succeeds', async () => {
+    const spy = jest
+      .spyOn(lastSynced, 'recordSync')
+      .mockImplementation(() => {});
+    const client = createQueryClient();
+
+    await client.fetchQuery({
+      queryKey: ['ok'],
+      queryFn: () => Promise.resolve('data'),
+    });
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+  });
+
+  it('does not record a sync timestamp when a query fails', async () => {
+    const spy = jest
+      .spyOn(lastSynced, 'recordSync')
+      .mockImplementation(() => {});
+    const client = createQueryClient();
+
+    await client
+      .fetchQuery({
+        queryKey: ['boom'],
+        queryFn: () => Promise.reject(new NotFoundError()),
       })
       .catch(() => {});
 

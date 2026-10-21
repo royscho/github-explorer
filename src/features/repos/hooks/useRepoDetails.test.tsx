@@ -1,5 +1,9 @@
 import React from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  onlineManager,
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react-native';
 
 import { NotFoundError } from '@shared/api';
@@ -71,6 +75,26 @@ describe('useRepoDetails', () => {
     expect(result.current.status).toBe('pending');
     expect(result.current.repoDetails).toBeUndefined();
     expect(result.current.isPlaceholderData).toBe(false);
+    expect(result.current.isPaused).toBe(false);
+  });
+
+  // §11: opening a repo with no cached list item to use as placeholder data pauses (rather than
+  // fails or hangs mid-fetch) while offline.
+  it('reports isPaused for an uncached repo while offline', async () => {
+    onlineManager.setOnline(false);
+    try {
+      mockFetchRepoDetails.mockReturnValue(new Promise(() => {}));
+      const queryClient = createQueryClient();
+      const { result } = await renderHook(
+        () => useRepoDetails('facebook', 'react'),
+        { wrapper: createWrapper(queryClient) },
+      );
+
+      await waitFor(() => expect(result.current.isPaused).toBe(true));
+      expect(result.current.repoDetails).toBeUndefined();
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 
   it('resolves to the fetched repo details on success', async () => {
