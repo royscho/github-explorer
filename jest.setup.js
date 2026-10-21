@@ -32,3 +32,21 @@ jest.mock('@specs/NativeDeviceNetwork', () => ({
     onNetworkStatusChanged: jest.fn().mockReturnValue({ remove: jest.fn() }),
   },
 }));
+
+// `@rozenite/tanstack-query-plugin`'s own production guard checks `NODE_ENV !== 'production'`,
+// which is true under Jest's `NODE_ENV=test` too — so without this mock it loads its real
+// implementation, which tries to open a DevTools-bridge connection that doesn't exist in Jest and
+// hangs every test that renders `AppProviders` (which calls the hook on every mount) indefinitely.
+jest.mock('@rozenite/tanstack-query-plugin', () => ({
+  useTanStackQueryDevTools: jest.fn(() => ({ isConnected: false })),
+}));
+
+// `rozenite-zustand-devtools` has its own, differently-shaped production guard
+// (`NODE_ENV !== 'production' && navigator.product === 'ReactNative' && typeof window !==
+// 'undefined'`), but shares the same `NODE_ENV=test` gap as the plugin above — confirmed by
+// reading its shipped code, not by independently reproducing the hang the way the plugin above
+// was. Every test that renders `AppProviders` (which calls this hook on every mount) would
+// otherwise risk the same kind of DevTools-bridge connection attempt that doesn't exist in Jest.
+jest.mock('rozenite-zustand-devtools', () => ({
+  useZustandDevTools: jest.fn(),
+}));

@@ -35,6 +35,7 @@ The user types a GitHub organization (`facebook`, `vercel`, …), browses its re
 | Testing      | Jest + React Native Testing Library                       | Unit, hook and component tests                              |
 | Quality      | ESLint (`@react-native`) + Prettier + Husky/lint-staged   | Consistent code, checks before commit                       |
 | CI           | GitHub Actions                                            | lint + typecheck + test on every PR                         |
+| Dev tooling  | Rozenite (TanStack Query + Zustand DevTools panels)       | Dev-only, verified no-op in production — see §16            |
 
 ---
 
@@ -273,6 +274,18 @@ Native unit tests (JUnit/XCTest) and E2E (Maestro/Detox) are future work.
 - **Scripts:** `npm run lint`, `npm run typecheck`, `npm test`. **CI (GitHub Actions):** lint + typecheck + test with coverage on every PR.
 - **Conventional commits**, one branch + PR per milestone, using `.github/pull_request_template.md`.
 
+### Runtime DevTools (dev-only)
+
+[Rozenite](https://www.rozenite.dev/) adds panels to React Native's built-in DevTools (`npm start`, then open DevTools as usual — no extra flag needed):
+
+- **`@rozenite/tanstack-query-plugin`** — live query/mutation cache inspection (refetch, invalidate, clear), wired in `AppProviders` via `useTanStackQueryDevTools(queryClient)`.
+- **`rozenite-zustand-devtools`** — live state for every registered Zustand store, wired in `AppProviders` via `useZustandDevTools([{ name, store }, …])`. `favoritesStoreForDevtools`/`networkStoreForDevtools` are exported from their feature's `index.ts` for this one purpose only, typed to just `getState`/`subscribe` so they can't be called as hooks or used to write state across the feature boundary — feature code keeps using the narrower selector hooks (`useIsFavorite`, `useNetworkStatus`, …).
+- **`@rozenite/metro`** — the Metro-side plugin host both of the above are discovered through.
+
+**Zustand devtools took two attempts.** The first wired zustand's own `devtools` middleware to Rozenite's `@rozenite/redux-devtools-plugin` by hand-building a throwaway Redux store through its documented `StoreEnhancer` — technically correct (zustand's middleware only looks for a browser-extension global Rozenite doesn't provide, so this bridged through the enhancer's real, standard contract instead) and it genuinely worked for a single store, but a second store connected under one running app never appeared in the panel's instance list — a real limitation of that plugin with more than one store per app, found only by testing on-device, not by reading its source. `rozenite-zustand-devtools` is purpose-built for exactly this (`StoreEntry[]`, no enhancer, no extra dependency), confirmed live with both stores streaming correctly.
+
+**Verified dev-only**, by reading each package's own shipped code, not just its README: both `@rozenite/tanstack-query-plugin` and `rozenite-zustand-devtools` check `process.env.NODE_ENV !== 'production'` at app runtime and swap in a genuine no-op otherwise. `@rozenite/metro`'s own plugin-serving middleware is deliberately left at its documented default (no explicit `enabled` passed in `metro.config.js`) rather than an `enabled: process.env.NODE_ENV !== 'production'` expression, which was tried first and found to be actively wrong: `metro.config.js` is `require`d (evaluating that expression) _before_ the CLI sets `NODE_ENV` for a release bundle (`@react-native/community-cli-plugin`'s `buildBundle.js` loads the Metro config, then sets `NODE_ENV`, in that order), so the expression is always stale at read time and would wrongly enable the middleware for a release build. `@rozenite/metro`'s own default instead inspects the actual invoking command (the `bundle`/`export` CLI subcommand, including the exact path Xcode/Gradle invoke for a release build) and correctly skips itself — which passing `enabled` explicitly would have bypassed. The trade-off: a one-time, harmless console warning in dev-server output, since this version's default is slated for removal in a future release.
+
 ### AI-assisted workflow (in the repo)
 
 - `CLAUDE.md` — project rules for the AI assistant.
@@ -315,6 +328,12 @@ Native unit tests (JUnit/XCTest) and E2E (Maestro/Detox) are future work.
 - **ESLint-enforced feature boundaries** (`eslint-plugin-boundaries`).
 - **Recent org searches** as quick chips; **server-side search** for very large orgs (§7).
 - **E2E tests** (Maestro/Detox), **native unit tests** (JUnit/XCTest) and native builds in CI.
+- **Full CI/CD with Fastlane** — automated signing, versioning/build-number bumps, and delivery to
+  TestFlight (iOS) and the Play Store internal track (Android) from GitHub Actions on a tag or merge
+  to `main`. Today's CI (lint + typecheck + test, §16) never produces a signed native build; this is
+  the remaining step from green checks to an installable build landing on a device without a manual
+  Xcode/Android Studio step. Depends on the native-builds-in-CI item above and would need code
+  signing credentials/provisioning profiles held as CI secrets, not in the repo.
 - **i18n with RTL support** — `i18next` + `react-i18next` as the localization layer (framework-agnostic core, with the interpolation and pluralization the hand-written formatters would move onto), and RTL via React Native's `I18nManager`, which flips layout direction natively once a right-to-left locale is active. The conversion cost today is small and bounded, which is worth recording before it grows: there is no `I18nManager` usage and no logical style properties yet, and exactly **6 physical direction-dependent properties**, all in three style hooks — `useOrgSearchInputStyles` (`paddingRight`, `right` — clear button), `useNameFilterInputStyles` (`paddingRight`, `right` — clear button) and `useRepoCardStyles` (`marginRight`, `right` — favorite toggle). An RTL pass converts those to `paddingEnd` / `marginEnd` / `end`, which RN flips automatically; every other directional style is already direction-neutral (`textAlign: 'center'`, `gap`, symmetric padding). The same pass extracts the user-facing string literals currently inline in components, and replaces the two English-only hand-written formatters (`formatRelativeTime`, `formatCompactNumber`, §9) with locale-aware equivalents — the point at which date-fns likely earns its place.
 - **Theme-mode picker** — the token sets, light/dark theming and `useColorScheme` following of the system setting are all built (§9); what's missing is the persisted `system | light | dark` user override (`settingsStore` + the Settings control). Deliberately left out of the time box.
 - **Deep linking** — `githubexplorer://repo/:owner/:repo` (§6.1). The groundwork is in place: `RepoDetails` is registered once in the root stack and takes IDs-only, serializable params, so the screen is deep-link-ready; registering the `linking` config is the remaining work.
