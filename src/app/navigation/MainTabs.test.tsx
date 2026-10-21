@@ -27,10 +27,18 @@ jest.mock('@features/settings', () => ({
   },
 }));
 
+// `OfflineBannerBoundary` (not `OfflineBanner`) because `MainTabs.tsx` wraps each tab in it now —
+// stubbed as a passthrough (its own stub text, then `children`) so the screen stub below it, which
+// the real component would wrap in a top-inset context provider, still renders.
 jest.mock('@features/device', () => ({
-  OfflineBanner: () => {
+  OfflineBannerBoundary: ({ children }: { children: React.ReactNode }) => {
     const { Text: RNText } = jest.requireActual('react-native');
-    return <RNText>Offline Banner Stub</RNText>;
+    return (
+      <>
+        <RNText>Offline Banner Stub</RNText>
+        {children}
+      </>
+    );
   },
 }));
 

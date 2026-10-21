@@ -1,10 +1,8 @@
 import React from 'react';
 import { View } from 'react-native';
-import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { Card, ErrorView, Text } from '@shared/components';
 import { useTheme } from '@shared/theme';
-import { hexToAlpha } from '@shared/utils';
 
 import {
   useDeviceInfo,
@@ -13,6 +11,9 @@ import {
 } from '../hooks';
 import type { ConnectionType } from '../native';
 
+import { GroupHeader } from './GroupHeader';
+import { InfoRow } from './InfoRow';
+
 const connectionTypeLabels: Record<ConnectionType, string> = {
   wifi: 'Wi-Fi',
   cellular: 'Cellular',
@@ -20,86 +21,6 @@ const connectionTypeLabels: Record<ConnectionType, string> = {
   none: 'None',
   unknown: 'Unknown',
 };
-
-const BADGE_TINT_ALPHA = 0.15;
-const PILL_TINT_ALPHA = 0.15;
-const GROUP_ICON_SIZE = 16;
-
-interface GroupHeaderProps {
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  tint: string;
-  title: string;
-}
-
-function GroupHeader({
-  icon,
-  tint,
-  title,
-}: GroupHeaderProps): React.JSX.Element {
-  const styles = useDeviceInfoSectionStyles();
-  return (
-    <View style={styles.groupHeader}>
-      <View
-        style={[
-          styles.groupIconBadge,
-          { backgroundColor: hexToAlpha(tint, BADGE_TINT_ALPHA) },
-        ]}
-      >
-        <Ionicons name={icon} size={GROUP_ICON_SIZE} color={tint} />
-      </View>
-      <Text
-        variant="title"
-        style={styles.groupTitle}
-        accessibilityRole="header"
-      >
-        {title}
-      </Text>
-    </View>
-  );
-}
-
-interface InfoRowProps {
-  label: string;
-  value: string;
-  // Renders `value` as a small tinted pill with a leading dot instead of plain text — for
-  // status-like fields (DESIGN mockup: "Status", "Low power mode"), not plain facts like Model.
-  tone?: 'success' | 'neutral';
-}
-
-function InfoRow({ label, value, tone }: InfoRowProps): React.JSX.Element {
-  const styles = useDeviceInfoSectionStyles();
-  const theme = useTheme();
-  const toneColor =
-    tone === 'success' ? theme.colors.success : theme.colors.textSecondary;
-
-  return (
-    <View
-      style={styles.row}
-      accessible
-      accessibilityLabel={`${label}: ${value}`}
-    >
-      <Text variant="body" color="secondary">
-        {label}
-      </Text>
-      {tone ? (
-        <View
-          style={[
-            styles.valuePill,
-            { backgroundColor: hexToAlpha(toneColor, PILL_TINT_ALPHA) },
-          ]}
-        >
-          <View
-            testID={`status-dot-${label}`}
-            style={[styles.valueDot, { backgroundColor: toneColor }]}
-          />
-          <Text variant="caption">{value}</Text>
-        </View>
-      ) : (
-        <Text variant="body">{value}</Text>
-      )}
-    </View>
-  );
-}
 
 // §10.3: a visible demo of the `DeviceNetwork` native module for reviewers — device info + live
 // network state + low-power mode, all read through the module.
