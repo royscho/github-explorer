@@ -31,7 +31,21 @@ class DeviceNetworkModule(reactContext: ReactApplicationContext) :
   @Volatile private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
   override fun getNetworkState(promise: Promise) {
-    promise.resolve(toWritableMap(currentNetworkState()))
+    // `ConnectivityManager` throws rather than returning a degraded answer when
+    // `ACCESS_NETWORK_STATE` is missing from the merged manifest. The permission is declared, so
+    // this is a guard against a future manifest regression, not an expected path: rejecting the
+    // promise lets the JS layer log it through `shared/logger` and carry on, where an uncaught
+    // throw out of a TurboModule method would take the app down instead.
+    val state =
+        try {
+          toWritableMap(currentNetworkState())
+        } catch (e: SecurityException) {
+          promise.reject(ERROR_MISSING_PERMISSION, MISSING_PERMISSION_MESSAGE, e)
+          return
+        }
+    // Resolved outside the `try` so a throw from `resolve` itself can't land in the catch and
+    // reject a promise that was already settled.
+    promise.resolve(state)
   }
 
   override fun getDeviceInfo(promise: Promise) {
@@ -67,7 +81,15 @@ class DeviceNetworkModule(reactContext: ReactApplicationContext) :
               )
             }
           }
-      manager.registerDefaultNetworkCallback(callback)
+      // Same `ACCESS_NETWORK_STATE` guard as `getNetworkState` — and `networkCallback` is only
+      // assigned once registration actually succeeded, so a failure here leaves nothing for
+      // `stopNetworkMonitoring`/`invalidate` to unregister.
+      try {
+        manager.registerDefaultNetworkCallback(callback)
+      } catch (e: SecurityException) {
+        promise.reject(ERROR_MISSING_PERMISSION, MISSING_PERMISSION_MESSAGE, e)
+        return
+      }
       networkCallback = callback
     }
     promise.resolve(null)
@@ -149,5 +171,9 @@ class DeviceNetworkModule(reactContext: ReactApplicationContext) :
 
   companion object {
     const val NAME = NativeDeviceNetworkSpec.NAME
+
+    private const val ERROR_MISSING_PERMISSION = "E_MISSING_PERMISSION"
+    private const val MISSING_PERMISSION_MESSAGE =
+        "DeviceNetwork needs the ACCESS_NETWORK_STATE permission in AndroidManifest.xml"
   }
 }

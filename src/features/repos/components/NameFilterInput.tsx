@@ -38,7 +38,13 @@ export function NameFilterInput({
             accessibilityLabel="Clear filter"
             onPress={() => onChangeText('')}
             style={styles.clearButton}
-            hitSlop={8}
+            // The icon is 18pt, so slop supplies the other 26 to reach DESIGN §14's 44pt minimum.
+            // Asymmetric on purpose: hit slop is clipped at the parent's bounds ("the touch area
+            // never extends past the parent view bounds" — RN's own `hitSlop` docs), and
+            // `clearButton` sits `right: spacing.sm` (8) from the wrapper's edge, so anything over
+            // 8 on the right is silently dropped. 18 + 18 + 8 = 44, all of it inside the wrapper.
+            // Vertically it already clears 44 — the button stretches the input's full height.
+            hitSlop={{ top: 8, bottom: 8, left: 18, right: 8 }}
           >
             <Ionicons
               name="close-circle"

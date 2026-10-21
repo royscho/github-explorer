@@ -673,7 +673,7 @@ debug an dzustabd state").
   asked, mid-task, to confirm the whole thing is dev-only (answered from source, not the READMEs: a
   no-op in production in both plugins, confirmed again independently by the reviewer) and to add
   "full CI/CD Fastlane" to future work (`docs/DESIGN.md` §18, mirrored in `README.md` and
-  `DECISIONS.md` §9, unrelated to the devtools work itself but requested in the same session).
+  `DECISIONS.md` §11, unrelated to the devtools work itself but requested in the same session).
 - Reviewer findings: fixed 5, nits fixed 5, rejected 0.
   - **The `metro.config.js` fix was itself wrong, and worse than doing nothing.** The first attempt
     passed `enabled: process.env.NODE_ENV !== 'production'` explicitly, reasoning that an explicit
@@ -722,3 +722,88 @@ debug an dzustabd state").
   the actual, verifiable order of operations in the real CLI — exactly the kind of claim this
   project's own standing rule ("verify, don't transcribe") exists for, and one I didn't apply to my
   own fix as rigorously as I'd applied it to the library's claims going in.
+
+## Fix — Final check (2026-10-21)
+
+Not a numbered milestone: a final review pass over the whole project, requested directly ("make
+final check , see if you any fixes , suggenstions"), followed by a coverage check against the
+assignment brief.
+
+- Model(s): implementer Claude Opus 5 (Claude Code), reviewer code-reviewer (opus)
+- AI generated: the four fixes below, 4 new tests, `DECISIONS.md` §9 (Performance) and §10 (Testing
+  strategy) with sections 9–12 renumbered to 11–14, and the `README.md` Android note.
+- Found by reading, not by the gates — all three were green before and after:
+  - **`ACCESS_NETWORK_STATE` was never declared in `AndroidManifest.xml`.** The most severe defect
+    found in the project: `registerDefaultNetworkCallback` and `getActiveNetwork` both require it,
+    so the native module's two network methods would have thrown `SecurityException` on every
+    Android run. Confirmed against the local SDK's own annotations
+    (`platforms/android-37.0/data/annotations.zip`) rather than from memory, and confirmed that no
+    dependency supplied it via manifest merge. A missing permission is not a compile error and
+    every test mocks the native module, so nothing in CI could have caught it.
+  - **`OfflineBanner` added the top safe-area inset below a native-stack header.** `RepoDetails`
+    deliberately drops `'top'` from its own `Screen` edges because the header owns that space, but
+    the sibling banner added `insets.top` unconditionally. Verified that neither
+    `@react-navigation/native-stack` nor `react-native-screens` narrows `SafeAreaInsetsContext`, so
+    the hook does report the full window inset there.
+  - Clear-button touch targets were 34pt wide against DESIGN §14's 44pt minimum.
+  - `useRepoDetails.test.tsx` leaked 7 React Query GC timers (`--detectOpenHandles`).
+- Changed / rejected by me: declined to chase the residual "worker process failed to exit
+  gracefully" warning to the end once it was established as cosmetic (342 tests, exit 0, CI green).
+  Worth recording that the first two attempts to locate it were both invalid for the same reason —
+  `--detectOpenHandles` implies `--runInBand`, and a single test file also runs in band, so neither
+  spawns the worker whose teardown produces the warning. The handle it does find (the GC timers) was
+  real and is fixed; the warning itself is unexplained and still present.
+- Reviewer findings: fixed 10, rejected 4, 1 refined and deferred.
+  - **The 44pt fix did not produce a 44pt target.** `hitSlop={{ left: 13, right: 13 }}` looked
+    symmetric and correct, but hit slop is clipped at the parent's bounds ("the touch area never
+    extends past the parent view bounds" — RN's own `hitSlop` docs, read in the installed source),
+    and the button sits `right: spacing.sm` (8) from the wrapper's edge. The right 13 was silently
+    clipped to 8: 39pt, not 44. Now asymmetric — 18 left + 18 icon + 8 right. The two tests I wrote
+    could not have caught this: they asserted `18 + left + right >= 44`, which is arithmetic over
+    the props, not geometry, and is blind to clipping by construction. They now assert the whole
+    slop object with the parent-bounds constraint recorded in a comment.
+  - **Refined and deferred:** the reviewer flagged the three tab mounts as the mirror case — banner
+    (`withTopInset` true) above a `Screen` whose default edges include `'top'`, i.e. two top insets
+    — citing the Fabric shadow node as evidence the inset is position-independent. That is half the
+    path. The shadow node only adds `stateData.insets`; where those come from is platform-specific,
+    and the two platforms differ. Android's `SafeAreaUtils.getSafeAreaInsets` computes "the part of
+    the view that overlaps with window insets" (`top = max(windowInsets.top - visibleRect.top, 0)`),
+    which clamps to 0 below the banner — no double inset. iOS reads `_providerView.safeAreaInsets`
+    (`RNCSafeAreaView.m:114`), the root provider's, which does not shrink for position — so the
+    double inset is real on iOS. Pre-existing, not introduced by this round, and not fixed here;
+    left as a flagged follow-up rather than folded in uninvited.
+  - Rejected: broadening the Kotlin catch from `SecurityException` to `RuntimeException` (would mask
+    real bugs; the paired start/stop makes `TooManyRequestsException` implausible here), and
+    applying `gcTime: Infinity` across five other suites on the grounds that they share the pattern
+    — `--detectOpenHandles` attributed all 7 handles to one file, so that is speculative. Two
+    cosmetic test nits also declined.
+  - Accepted and fixed: resolving outside the `try` in `getNetworkState` so a throw from `resolve`
+    can't reject an already-settled promise; a dead `= {}` props default; `OfflineBannerProps` not
+    re-exported from the feature barrel though a cross-feature consumer passes one of its props; a
+    stale `DECISIONS.md §9` pointer in this log left by the renumbering (the only one repo-wide);
+    README overstating the blast radius as "every `DeviceNetwork` call"; the permission fix missing
+    from DECISIONS §4's native-fixes list; and two inaccuracies in the new §9 (`keyExtractor`
+    described as a `useCallback` when it is module-level, and a hard test count that would rot).
+- Validation: lint / typecheck / 342 tests (up from 338), `:app:compileDebugKotlin` and
+  `:app:assembleDebug` both green. **Verified on a Pixel 9 emulator (API 37):** the installed
+  package reports `ACCESS_NETWORK_STATE: granted=true`, the app launches with no `SecurityException`
+  in logcat, and `svc wifi disable` / `svc data disable` drives `NetworkCallback.onLost` through to
+  a visible offline banner. The banner-inset and hit-target fixes are **not** device-verified — both
+  are iOS-facing and no simulator run was made this round.
+- Also unblocked, environment rather than code: Android Studio's Play button failed at
+  `:app:generateCodegenArtifactsFromSchema` with `Cannot run program "node"`, while the same build
+  succeeded from the terminal. macOS GUI apps inherit launchd's PATH, which has `/usr/local/bin` but
+  not `/opt/homebrew/bin` where this machine's node lives. Fixed by symlinking node into
+  `/usr/local/bin`, then proven by re-running the failing task under the GUI PATH
+  (`env -i PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin ./gradlew …`) rather than by assuming.
+- Where AI was useful / risky: the useful half is that reading native and library source against
+  the JS found a defect that an entire green test suite, a typechecker and a linter structurally
+  could not — the same pattern as #06, #07 and #08, now a fourth instance. The risky half is the
+  mirror image, and it is mine: I wrote a fix for an accessibility minimum, wrote two tests that
+  asserted my own arithmetic rather than the behavior, and shipped a number (44) that was wrong in
+  the real layout — the tests agreed with the code because they encoded the same assumption. The
+  reviewer caught it by reading the geometry against the stylesheet. The lesson generalizes past
+  this instance: a test that re-states the implementation's arithmetic is not evidence about the
+  world, and "it has a test" said nothing here. Also worth keeping: the reviewer's own most
+  substantial finding was half-right, and checking it took reading two platforms' native source —
+  review output needs verifying exactly as much as implementation output does.

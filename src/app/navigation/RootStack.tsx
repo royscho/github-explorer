@@ -23,7 +23,10 @@ function renderDetailsFavoriteToggle(
 function RepoDetailsScreenWithBoundary(): React.JSX.Element {
   return (
     <ScreenErrorBoundary>
-      <OfflineBanner />
+      {/* `withTopInset={false}`: this is the one screen with `headerShown: true`, so the banner
+          renders *below* the native header, which already sits in the top safe area — the same
+          reason `RepoDetailsScreen` leaves `'top'` out of its own `Screen` edges. */}
+      <OfflineBanner withTopInset={false} />
       <RepoDetailsScreen renderFavoriteToggle={renderDetailsFavoriteToggle} />
     </ScreenErrorBoundary>
   );

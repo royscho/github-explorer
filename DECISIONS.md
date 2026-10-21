@@ -166,6 +166,18 @@ switch because validation completes asynchronously _after_ the switch — change
 `networkCallback` field was read from the method-invocation thread and written by `invalidate()`'s
 teardown thread with no guard — made `@Volatile`.
 
+**↻ changed after milestone 10, from a final review round.** A third, and the most severe Android
+defect in the project: `AndroidManifest.xml` never declared `ACCESS_NETWORK_STATE`. Both
+`registerDefaultNetworkCallback` and `getActiveNetwork` require it, so `startNetworkMonitoring` and
+`getNetworkState` would have thrown `SecurityException` on every Android run — the offline banner,
+the `onlineManager` wiring and Settings → Device all dead, on the one platform that had seen less
+device time. Nothing in JS, lint, typecheck or 338 passing tests could surface it: a missing
+permission is not a compile error, and every test mocks the native module. Found by reading the
+Kotlin against the manifest, confirmed against the SDK's own `@RequiresPermission` annotations, and
+fixed with the declaration plus `SecurityException` guards that reject the promise rather than
+throwing out of a TurboModule method. Verified on a Pixel 9 emulator: permission granted, and
+toggling connectivity drives `onLost` through to the banner.
+
 ### ↻ The monitor is recreated when the app resumes, not just re-read
 
 **Changed after milestone 09, from manual testing.** Network state was seeded exactly once per
@@ -263,7 +275,7 @@ role/label.
 unreliable — so the "just use `Intl`" answer doesn't hold on the actual runtime. `Intl.DateTimeFormat`
 _is_ used, for absolute dates, where it works.
 
-**Trade-off.** Two functions to own, and they're English-only (see §9). date-fns is the named
+**Trade-off.** Two functions to own, and they're English-only (see §11). date-fns is the named
 fallback if needs grow. Both had real edge-case bugs caught by review — `999_950` formatting as
 `"1000k"` instead of `"1m"`, and an unparseable date yielding `"NaN years ago"`.
 
@@ -396,7 +408,80 @@ after.
 
 ---
 
-## 9. Deliberate scope cuts
+## 9. Performance
+
+### Everything here is aimed at one screen
+
+**Decision.** The performance budget went to the infinite list and nothing else: FlashList's cell
+recycling (§5), a `memo`ized `RepoCard`, Zustand selectors scoped to a single card, and a `useMemo`
+filter over debounced input.
+
+**Why.** The list is the only surface in the app that grows without bound — details, favorites and
+settings are fixed-size screens where a re-render costs nothing worth measuring. Each mechanism
+closes a different leak. `memo` stops a parent re-render from re-rendering thirty cards, but only if
+every prop is referentially equal — which is why `RepoCard` takes `onPress(repo)` rather than a
+per-card closure, and why `renderItem` is a `useCallback` and `keyExtractor` a module-level
+function rather than inline arrows. `useIsFavorite(id)` subscribes each card to one key of the store, so starring a
+repo re-renders that card and not the list. The filter runs once per typing pause, not once per
+keystroke.
+
+**Trade-off.** Stable-reference discipline is invisible and easy to break: an inline arrow in
+`renderItem` silently undoes `memo`, and no test or lint rule catches it. The honest limit — **none
+of this was profiled.** There are no traces or frame measurements behind it, only the standard
+mechanisms applied where the growth is. DESIGN §12 has the reasoning per mechanism.
+
+### Fewer requests beats faster requests
+
+**Decision.** A 5-minute `staleTime`, `per_page=30`, prefetch on `onPressIn`, and the persisted
+cache (§8) — all of it exists to avoid issuing a request at all.
+
+**Why.** Unauthenticated GitHub allows 60 requests/hour. At that budget caching is a correctness
+concern rather than an optimization: `staleTime` means returning to Explore doesn't refetch, and
+prefetching details on press-in spends the gap between finger-down and navigation committing, which
+is enough to make the details screen open on content instead of a skeleton.
+
+**Trade-off.** Prefetch spends a request on presses the user abandons, which is the wrong trade at
+60/hour if it happened often — it's bounded by `staleTime` deduping repeat presses on the same repo,
+and by the fact that a press-in usually becomes a press. ETag requests (§11) would remove the
+tension entirely, since `304`s don't count against the limit.
+
+---
+
+## 10. Testing strategy
+
+### Four layers, and a rule that every step ships its own
+
+**Decision.** Over 340 tests across 64 suites, co-located as `Foo.tsx` + `Foo.test.tsx`, in four
+layers:
+**unit** (formatters, `Link`-header parsing, mappers, typed errors, the favorites store), **hook**
+(`useOrgRepos`/`useRepoDetails` driven through a real `QueryClientProvider`), **component** (RNTL,
+queried by role and label) and **screen** (wiring — that a press navigates, that a failure renders a
+Retry). `lint`, `typecheck` and `test` all pass before any commit, and CI blocks the merge.
+
+**Why.** Querying by role and label makes the component tests double as the accessibility check
+(§5) — one suite covering two requirements, and a renamed label breaks a test rather than silently
+degrading VoiceOver. Hook tests drive React Query's real state machine instead of asserting against
+a hand-set mock, which is the only reason the offline pause/resume behavior was testable at all.
+
+**Trade-off.** No E2E and no native unit tests (§11). FlashList needs real layout measurement, so
+screen tests mock it with a `View`-based stand-in and verify _this screen's_ wiring to its props
+(§5); nothing here asserts that FlashList actually recycles, which is its own suite's job.
+
+### The bugs a green suite could not catch
+
+Three of the most consequential bugs in this project shipped with every test passing: the dehydrate
+filter that would have dropped cached data on a failed background refetch (§8), the paused query
+that hung on a skeleton forever (§8), and the network monitor that went stale when the app resumed
+(§4). None was reachable by a test asserting against a mock — each needed either React Query's real
+machinery or a real device.
+
+That turned into a standing question for anything network-dependent: **does this path traverse the
+real machinery, or just a hand-set mock value?** All three have regression tests now, each written
+against the exact sequence that broke rather than against the shape of the fix.
+
+---
+
+## 11. Deliberate scope cuts
 
 Each of these was considered and written up rather than silently dropped — the reasoning is in
 `docs/DESIGN.md`.
@@ -414,7 +499,7 @@ Each of these was considered and written up rather than silently dropped — the
 
 ---
 
-## 10. Runtime DevTools
+## 12. Runtime DevTools
 
 **Decision.** [Rozenite](https://www.rozenite.dev/) adds a TanStack Query panel
 (`@rozenite/tanstack-query-plugin`) and a Zustand panel (`rozenite-zustand-devtools`) directly into
@@ -464,7 +549,7 @@ selectors) isn't bent, just given one additional, clearly-commented reader.
 
 ---
 
-## 11. Process
+## 13. Process
 
 **One milestone = one step doc + one branch + one PR.** Each `docs/steps/NN-*.md` is written and
 approved _before_ any code: goal, files, public APIs, the full test list, out-of-scope, risks, and
@@ -486,7 +571,7 @@ after the plan and before any push. What that caught, and what it missed, is wri
 
 ---
 
-## 12. What I'd do next
+## 14. What I'd do next
 
 1. **ETag conditional requests** — biggest win available; `304`s are free against the rate limit.
 2. **`eslint-plugin-boundaries`** — make the architecture rules fail CI instead of relying on review.

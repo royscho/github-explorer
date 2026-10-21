@@ -1,6 +1,7 @@
 import { useNetworkStore } from './store';
 
 export { OfflineBanner, DeviceInfoSection } from './components';
+export type { OfflineBannerProps } from './components';
 export { useDeviceNetworkMonitoring } from './hooks';
 
 // Read-only view for devtools registration (AppProviders) only — feature code should keep using

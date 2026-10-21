@@ -75,4 +75,19 @@ describe('OrgSearchInput', () => {
     await userEvent.press(clearButton);
     expect(onChangeText).toHaveBeenCalledWith('');
   });
+
+  // DESIGN §14: 44pt minimum touch target — 18pt icon + 18 + 8 of slop, `right` capped at the gap
+  // to the wrapper's edge. See `NameFilterInput.test.tsx` for why this is a whole-object assertion.
+  it('gives the clear button a 44pt-wide touch target', async () => {
+    await renderInput({ value: 'facebook' });
+    const clearButton = await screen.findByRole('button', {
+      name: 'Clear organization name',
+    });
+    expect(clearButton.props.hitSlop).toEqual({
+      top: 8,
+      bottom: 8,
+      left: 18,
+      right: 8,
+    });
+  });
 });
