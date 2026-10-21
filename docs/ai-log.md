@@ -854,3 +854,23 @@ simulator after that PR merged ("now i see the banner is not absolute it push th
   mechanism, not the pixels, because the tooling to see the pixels wasn't available to me here. The
   user's own simulator run is what actually closes that gap, and is recorded as such rather than
   claimed as something I confirmed myself.
+
+## Chore — split DeviceInfoSection's inline sub-components (2026-10-21)
+
+Not a numbered milestone: a direct request on the same branch, after reviewing the file in the
+editor ("please separate the component in deviceinfosection", then "InfoRow too").
+
+- Model(s): implementer Claude Sonnet 5 (Claude Code)
+- `GroupHeader` and `InfoRow` were private functions defined inline in `DeviceInfoSection.tsx`,
+  each with one consumer. Every other component in this codebase (`shared/components/`,
+  `features/device/components/` itself) is one file, barrel-exported from `index.ts` — these two
+  were the only exceptions. Moved each to its own file on that same pattern; `DeviceInfoSection.tsx`
+  is now pure composition (layout + data wiring), no local component definitions left.
+- No new test files: checked `Text.tsx` (same codebase, no dedicated test) as precedent for a
+  simple, prop-driven component covered entirely through whatever renders it — `GroupHeader`'s icon,
+  tint and title and `InfoRow`'s plain/success/neutral-pill paths are already exercised by
+  `DeviceInfoSection.test.tsx` across both the Device and Network cards, with nothing left untested
+  by the move itself.
+- Scope held to exactly what was asked, in two steps: `GroupHeader` alone, then `InfoRow` on request
+  — not both at once on the assumption the second was obviously wanted.
+- Validation: lint / typecheck / 349 tests (no count change — a file move, not new behavior).
