@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { AppState } from 'react-native';
 import { onlineManager } from '@tanstack/react-query';
 
 import { logger } from '@shared/logger';
@@ -19,18 +20,30 @@ function applyNetworkState(state: NetworkState): void {
 
 // Called once, from `AppProviders` — starts native monitoring, seeds the store from one
 // `getNetworkState()` call so state is correct before the first event, subscribes to every
-// subsequent change, and mirrors each one onto React Query's `onlineManager` (§10.3) so queries
-// pause while offline and resume on reconnect.
+// subsequent change, re-reads on foreground, and mirrors each one onto React Query's
+// `onlineManager` (§10.3) so queries pause while offline and resume on reconnect.
 export function useDeviceNetworkMonitoring(): void {
   useEffect(() => {
     let isMounted = true;
-    // The seed read races the first live event in principle (both are async). If an event already
-    // landed, the seed — which can be stale by the time it resolves — is dropped instead of
-    // clobbering newer state.
-    let receivedEvent = false;
+    // Counts live events so that a `getNetworkState()` read resolving after an event has landed is
+    // dropped instead of overwriting it with a value that was already stale on arrival. Both the
+    // initial seed and every foreground re-read race live events this way.
+    let eventCount = 0;
+
+    const logFailure = (error: unknown): void =>
+      logger.error(error, { feature: 'device' });
+
+    function readAndApply(): Promise<void> {
+      const eventsAtIssue = eventCount;
+      return getNetworkState().then(state => {
+        if (isMounted && eventCount === eventsAtIssue) {
+          applyNetworkState(state);
+        }
+      });
+    }
 
     const subscription = subscribeToNetworkStatus(state => {
-      receivedEvent = true;
+      eventCount += 1;
       applyNetworkState(state);
     });
 
@@ -38,21 +51,24 @@ export function useDeviceNetworkMonitoring(): void {
     // `startNetworkMonitoring` resolving is missed; seed only after monitoring has actually
     // started — `getNetworkState()` before that reads a monitor that was never (or no longer)
     // running, which on iOS reports an unstarted monitor's default (unsatisfied) path.
-    startNetworkMonitoring()
-      .then(() => getNetworkState())
-      .then(state => {
-        if (isMounted && !receivedEvent) {
-          applyNetworkState(state);
-        }
-      })
-      .catch((error: unknown) => logger.error(error, { feature: 'device' }));
+    startNetworkMonitoring().then(readAndApply).catch(logFailure);
+
+    // A suspended app isn't guaranteed to receive path updates, so a connectivity change while
+    // backgrounded can be missed entirely and leave the store (and `onlineManager`) stale until the
+    // next remount — which is why reloading the app "fixes" it. Re-reading on foreground makes
+    // that self-correcting. It also covers the iOS Simulator, where `NWPathMonitor` often never
+    // re-fires the offline→online event at all.
+    const appStateSubscription = AppState.addEventListener('change', status => {
+      if (status === 'active') {
+        readAndApply().catch(logFailure);
+      }
+    });
 
     return () => {
       isMounted = false;
       subscription.remove();
-      stopNetworkMonitoring().catch((error: unknown) =>
-        logger.error(error, { feature: 'device' }),
-      );
+      appStateSubscription.remove();
+      stopNetworkMonitoring().catch(logFailure);
     };
   }, []);
 }

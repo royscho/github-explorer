@@ -1,3 +1,5 @@
+import { AppState } from 'react-native';
+import type { AppStateStatus, NativeEventSubscription } from 'react-native';
 import { onlineManager } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 
@@ -51,6 +53,17 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
 
 describe('useDeviceNetworkMonitoring', () => {
   const removeMock = jest.fn();
+  const appStateRemoveMock = jest.fn();
+  // `jest.mock('react-native', factory)` crashes with a `DevMenu` TurboModule invariant violation
+  // in this project's Jest setup, so `AppState` is spied on rather than module-mocked.
+  let addEventListenerSpy: jest.SpyInstance;
+
+  function emitAppState(status: AppStateStatus): void {
+    const handler = addEventListenerSpy.mock.calls[0][1] as (
+      status: AppStateStatus,
+    ) => void;
+    handler(status);
+  }
 
   beforeEach(() => {
     useNetworkStore.setState({
@@ -62,10 +75,16 @@ describe('useDeviceNetworkMonitoring', () => {
     mockStartNetworkMonitoring.mockResolvedValue(undefined);
     mockStopNetworkMonitoring.mockResolvedValue(undefined);
     mockSubscribeToNetworkStatus.mockReturnValue({ remove: removeMock });
+    addEventListenerSpy = jest
+      .spyOn(AppState, 'addEventListener')
+      .mockReturnValue({
+        remove: appStateRemoveMock,
+      } as NativeEventSubscription);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
+    addEventListenerSpy.mockRestore();
     onlineManager.setOnline(true);
   });
 
@@ -163,7 +182,109 @@ describe('useDeviceNetworkMonitoring', () => {
     await unmount();
 
     expect(removeMock).toHaveBeenCalledTimes(1);
+    expect(appStateRemoveMock).toHaveBeenCalledTimes(1);
     expect(mockStopNetworkMonitoring).toHaveBeenCalledTimes(1);
+  });
+
+  // A connectivity change missed while the app was suspended (and the iOS Simulator's missing
+  // offline→online event) leaves the store stale until the next remount — the foreground re-read
+  // is what makes it self-correcting.
+  it('re-reads and applies network state when the app returns to the foreground', async () => {
+    mockGetNetworkState.mockResolvedValue(
+      makeState({ isConnected: false, connectionType: 'none' }),
+    );
+
+    const { unmount } = await renderHook(() => useDeviceNetworkMonitoring());
+    await waitFor(() => {
+      expect(useNetworkStore.getState().isOnline).toBe(false);
+    });
+    expect(onlineManager.isOnline()).toBe(false);
+
+    mockGetNetworkState.mockResolvedValue(
+      makeState({ isConnected: true, connectionType: 'wifi' }),
+    );
+    await act(() => {
+      emitAppState('active');
+    });
+
+    await waitFor(() => {
+      expect(useNetworkStore.getState().isOnline).toBe(true);
+    });
+    expect(useNetworkStore.getState().connectionType).toBe('wifi');
+    expect(onlineManager.isOnline()).toBe(true);
+
+    await unmount();
+  });
+
+  it('does not re-read when the app state changes to something other than active', async () => {
+    const { unmount } = await renderHook(() => useDeviceNetworkMonitoring());
+    await waitFor(() => {
+      expect(mockGetNetworkState).toHaveBeenCalledTimes(1);
+    });
+
+    await act(() => {
+      emitAppState('background');
+    });
+    await act(() => {
+      emitAppState('inactive');
+    });
+
+    // Still just the initial seed.
+    expect(mockGetNetworkState).toHaveBeenCalledTimes(1);
+
+    await unmount();
+  });
+
+  it('drops a foreground re-read that resolves after a live event already landed', async () => {
+    const { unmount } = await renderHook(() => useDeviceNetworkMonitoring());
+    await waitFor(() => {
+      expect(mockGetNetworkState).toHaveBeenCalledTimes(1);
+    });
+
+    const read = deferred<NetworkState>();
+    mockGetNetworkState.mockReturnValue(read.promise);
+    await act(() => {
+      emitAppState('active');
+    });
+
+    const listener = mockSubscribeToNetworkStatus.mock.calls[0][0];
+    await act(() => {
+      listener(makeState({ isConnected: false, connectionType: 'none' }));
+    });
+
+    await act(async () => {
+      read.resolve(makeState({ isConnected: true, connectionType: 'wifi' }));
+      await Promise.resolve();
+    });
+
+    expect(useNetworkStore.getState().isOnline).toBe(false);
+    expect(useNetworkStore.getState().connectionType).toBe('none');
+
+    await unmount();
+  });
+
+  it('logs and does not throw when the foreground re-read rejects', async () => {
+    const { unmount } = await renderHook(() => useDeviceNetworkMonitoring());
+    await waitFor(() => {
+      expect(mockGetNetworkState).toHaveBeenCalledTimes(1);
+    });
+
+    const errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
+    mockGetNetworkState.mockRejectedValue(new Error('native failure'));
+
+    await act(() => {
+      emitAppState('active');
+    });
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith(expect.any(Error), {
+        feature: 'device',
+      });
+    });
+    expect(useNetworkStore.getState().isOnline).toBe(true);
+
+    errorSpy.mockRestore();
+    await unmount();
   });
 
   it('logs and does not throw when startNetworkMonitoring rejects', async () => {
