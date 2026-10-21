@@ -1,9 +1,11 @@
 import React from 'react';
 import { Text } from 'react-native';
 import { render, screen, waitFor } from '@testing-library/react-native';
-import { useQuery } from '@tanstack/react-query';
+import { QueryClient, useQuery } from '@tanstack/react-query';
+import { useTanStackQueryDevTools } from '@rozenite/tanstack-query-plugin';
+import { useZustandDevTools } from 'rozenite-zustand-devtools';
 
-// Already a jest.fn()-based mock registered globally in `jest.setup.js` — see its comment.
+// Already jest.fn()-based mocks registered globally in `jest.setup.js` — see its comments.
 import NativeDeviceNetwork from '@specs/NativeDeviceNetwork';
 import { mmkv, queryPersistOptions } from '@shared/storage';
 
@@ -11,6 +13,13 @@ import { AppProviders } from './AppProviders';
 
 const mockNativeDeviceNetwork = NativeDeviceNetwork as jest.Mocked<
   typeof NativeDeviceNetwork
+>;
+const mockUseTanStackQueryDevTools =
+  useTanStackQueryDevTools as jest.MockedFunction<
+    typeof useTanStackQueryDevTools
+  >;
+const mockUseZustandDevTools = useZustandDevTools as jest.MockedFunction<
+  typeof useZustandDevTools
 >;
 
 function QueryProbe(): React.JSX.Element {
@@ -106,6 +115,43 @@ describe('AppProviders', () => {
         mockNativeDeviceNetwork.startNetworkMonitoring,
       ).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('wires the QueryClient into the TanStack Query devtools hook', async () => {
+    await render(
+      <AppProviders>
+        <Text>hello</Text>
+      </AppProviders>,
+    );
+
+    expect(mockUseTanStackQueryDevTools).toHaveBeenCalledWith(
+      expect.any(QueryClient),
+    );
+  });
+
+  it('registers favorites and network with the Zustand devtools hook, with a stable stores reference across renders', async () => {
+    const { rerender } = await render(
+      <AppProviders>
+        <Text>hello</Text>
+      </AppProviders>,
+    );
+
+    expect(mockUseZustandDevTools).toHaveBeenCalledWith([
+      expect.objectContaining({ name: 'favorites' }),
+      expect.objectContaining({ name: 'network' }),
+    ]);
+
+    await rerender(
+      <AppProviders>
+        <Text>hello again</Text>
+      </AppProviders>,
+    );
+
+    // The module-scope stores array must be the exact same reference across renders — a new one
+    // would make `useZustandDevTools`'s own effect tear down and rebuild every store subscription.
+    expect(mockUseZustandDevTools.mock.calls[1][0]).toBe(
+      mockUseZustandDevTools.mock.calls[0][0],
+    );
   });
 
   it('restores a persisted query into a descendant before it would otherwise resolve', async () => {

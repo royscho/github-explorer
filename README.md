@@ -68,6 +68,17 @@ pick it up.
 > Development was done against the **iOS simulator**; the Android implementation is complete
 > (Kotlin `ConnectivityManager`/`NetworkCallback`) and compiles, but has had less on-device time.
 
+### DevTools
+
+Running `npm start` and opening React Native's built-in DevTools gets you two extra panels, courtesy
+of [Rozenite](https://www.rozenite.dev/) — no setup, no flag:
+
+- **TanStack Query** — live query/mutation cache, refetch/invalidate/clear.
+- **Zustand** — live state for every registered store (`favorites`, `network`).
+
+Both are verified dev-only (checked in each package's own shipped code, not just its docs): they
+no-op when `NODE_ENV` is `'production'`, same as the app's own `logger.warn`/`.info`.
+
 ## Checks
 
 ```sh
@@ -153,6 +164,9 @@ Deliberately **not** built, to keep the time box honest — each was considered 
 - **`.env` configuration** — not needed yet: the app calls one unauthenticated read-only API and
   holds no secrets. Planned via `react-native-config` once there's a Sentry DSN or a local-dev
   GitHub token to hold (§18, including why a bundled token is never actually secret).
+- **Full CI/CD with Fastlane** — today's CI runs lint/typecheck/test only; it never produces a
+  signed native build. Planned: automated signing, build-number bumps, and delivery to TestFlight /
+  the Play Store internal track from GitHub Actions (§18).
 
 Also see `docs/DESIGN.md` §17 (monitoring in production), §18 (future work) and §19 (risks and
 trade-offs).

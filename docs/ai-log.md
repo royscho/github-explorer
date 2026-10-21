@@ -642,3 +642,83 @@ it (PR #11).
   construction. It's also the first time the _manual_ verification was designed to rule out the
   obvious false positive (checking the PID to prove a restart wasn't doing the work) rather than just
   observing the happy outcome — worth making the default for any future device check.
+
+## Chore — Runtime DevTools (Rozenite) (2026-10-21)
+
+Not a numbered milestone: a standalone chore, requested directly ("i wan to add react qurery state
+debug an dzustabd state").
+
+- Model(s): implementer Claude Opus 5 (Claude Code), reviewer code-reviewer (opus)
+- Researched before writing any code, per CLAUDE.md's "ask before adding dependencies not in
+  DESIGN.md": `@rozenite/tanstack-query-plugin` (confirmed on the npm registry directly, not just
+  web search, which returned unreliable/unverifiable results for the exact package names) for React
+  Query, gated behind two `AskUserQuestion` approvals — one for the React Query half, one flagging
+  that the obvious Zustand approach (zustand's own `devtools` middleware + Rozenite's
+  `@rozenite/redux-devtools-plugin`) wouldn't actually connect, verified by reading zustand's real
+  middleware source (`node_modules/zustand/esm/middleware.mjs`) before proposing anything.
+- AI generated: `@rozenite/metro` wired into `metro.config.js`; `useTanStackQueryDevTools` wired
+  into `AppProviders`; a hand-built Redux-enhancer bridge for Zustand (`redux` +
+  `@rozenite/redux-devtools-plugin`, a `connectZustandDevtools` helper in a new `shared/devtools/`,
+  with its own test); then, once that bridge failed on a second store, all of it deleted and
+  replaced with `rozenite-zustand-devtools` wired the same way as the TanStack hook; two new Jest
+  mocks (`jest.setup.js`) for both plugins' real implementations, which otherwise load under Jest
+  (`NODE_ENV=test` doesn't satisfy either package's own `!== 'production'` guard) and hang any test
+  rendering `AppProviders`, confirmed by letting the hang actually happen once before mocking it;
+  two new `AppProviders.test.tsx` tests (from review) pinning the `QueryClient` wiring and the
+  Zustand stores array's cross-render reference stability.
+- Changed / rejected by me: approved both halves of the plan; when the hand-built Zustand bridge
+  worked for one store but not two, asked whether a purpose-built package existed rather than
+  continuing to debug an undocumented edge of `@rozenite/redux-devtools-plugin` — which is what led
+  to `rozenite-zustand-devtools` and the whole hand-rolled approach being discarded. Separately
+  asked, mid-task, to confirm the whole thing is dev-only (answered from source, not the READMEs: a
+  no-op in production in both plugins, confirmed again independently by the reviewer) and to add
+  "full CI/CD Fastlane" to future work (`docs/DESIGN.md` §18, mirrored in `README.md` and
+  `DECISIONS.md` §9, unrelated to the devtools work itself but requested in the same session).
+- Reviewer findings: fixed 5, nits fixed 5, rejected 0.
+  - **The `metro.config.js` fix was itself wrong, and worse than doing nothing.** The first attempt
+    passed `enabled: process.env.NODE_ENV !== 'production'` explicitly, reasoning that an explicit
+    choice beats a library default slated for removal. Review found, by reading
+    `@react-native/community-cli-plugin`'s `buildBundle.js`, that Metro loads `metro.config.js`
+    (evaluating that expression) _before_ the CLI sets `NODE_ENV` for a release bundle — so the
+    expression always read a stale value and evaluated to "on" for a release build, while also
+    bypassing `@rozenite/metro`'s own default behavior (confirmed by reading its source: it
+    correctly detects a release bundle by inspecting the actual invoking command, including the
+    exact path Xcode/Gradle use). Fixed by passing no `enabled` at all and accepting the one-time
+    console warning instead of a less-correct replacement condition — verified by reading both
+    source files directly, not by trusting the reviewer's claim.
+  - No test exercised the new wiring in `AppProviders.test.tsx`. Added two: the `QueryClient` is
+    passed to the TanStack hook, and the Zustand stores array is the same reference across a
+    rerender (both hooks were already `jest.fn()` globals, so this was cheap).
+  - `rozenite-zustand-devtools` had landed in `devDependencies` while the otherwise-identical
+    `@rozenite/tanstack-query-plugin` was correctly in `dependencies` — both are imported at
+    runtime from `AppProviders.tsx`, so both need to be regular dependencies. Fixed.
+  - Nits: exporting the raw `useFavoritesStore`/`useNetworkStore` hooks from their feature barrels
+    for devtools registration leaked more surface (the full hook, including `setState`) than
+    needed — narrowed to `Pick<typeof useXStore, 'getState' | 'subscribe'>`-typed, renamed
+    `favoritesStoreForDevtools`/`networkStoreForDevtools` so the name doesn't imply hook-safe
+    usage. Stale comments (one claiming "currently just the TanStack Query inspector" after the
+    Zustand plugin shipped too; one in `jest.setup.js` overclaiming an empirically-confirmed hang
+    for a package whose hang was only inferred from a shared code pattern, not independently
+    reproduced) corrected to say precisely what was verified. `docs/DESIGN.md` §2's stack table
+    didn't mention the new tooling at all — added a cross-reference row.
+- Validation: lint / typecheck / tests (338 tests, up from 336 — two new tests, no new test files
+  since the hand-rolled bridge's own test was deleted along with it) all pass. **Manually verified
+  on an iPhone 18 Pro simulator**, same rigor as the network-resume fix: the React Query panel
+  showed live query cache entries for a real search; the (ultimately abandoned) Redux-DevTools
+  bridge was confirmed, via its own actual shipped registry code, to assign each store a genuinely
+  unique `instanceId` — then confirmed, by testing two stores live rather than trusting that source
+  reading, to still only ever show one in the panel's instance selector; `rozenite-zustand-devtools`
+  was then confirmed showing both `favorites` (four real favorited repos, correct 12-field snapshot
+  shape) and `network` (a genuinely offline `isOnline: false` reading mid-test) simultaneously, each
+  in its own panel, both updating live.
+- Where AI was useful / risky: the standout is the opposite lesson from the network-resume fix
+  (#—, above) rather than a repeat of it — there, source-reading caught what five passing tests
+  missed; here, careful source-reading (confirming the enhancer's documented contract, confirming
+  each store got a unique registry `instanceId`) said the hand-rolled bridge _should_ scale to two
+  stores, and only running it live with two real stores proved that wrong. Neither method
+  substitutes for the other. Separately risky, and corrected only by review: the `metro.config.js`
+  "fix" for a library's own deprecation warning introduced a worse bug than the thing it was fixing,
+  because the fix was reasoned from a plausible mental model of `NODE_ENV` timing that didn't match
+  the actual, verifiable order of operations in the real CLI — exactly the kind of claim this
+  project's own standing rule ("verify, don't transcribe") exists for, and one I didn't apply to my
+  own fix as rigorously as I'd applied it to the library's claims going in.

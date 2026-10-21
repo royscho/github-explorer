@@ -401,25 +401,76 @@ after.
 Each of these was considered and written up rather than silently dropped — the reasoning is in
 `docs/DESIGN.md`.
 
-| Not built                | Status                                                                                                                                                                                                                                                                                                                                                                                            |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Theme picker**         | Tokens, light/dark and the whole theming layer are built and follow the system setting; the persisted `system \| light \| dark` override isn't wired (§9)                                                                                                                                                                                                                                         |
-| **Deep linking**         | Route params are already IDs-only and serializable, so the screen is deep-link-_ready_; the `linking` config isn't registered (§6.1)                                                                                                                                                                                                                                                              |
-| **i18n / RTL**           | Planned via `i18next` + `react-i18next`, RTL through `I18nManager`. §18 names the exact work: 6 physical style properties (in three style hooks) to convert to logical `end`/`paddingEnd`/`marginEnd`, inline strings to extract, and locale-aware replacements for the two hand-written formatters                                                                                               |
-| **ETag requests**        | `If-None-Match` with cached ETags — GitHub `304`s don't count against the rate limit. The highest-value next step for this app (§18)                                                                                                                                                                                                                                                              |
-| **`.env` config**        | No env layer today, deliberately — one unauthenticated read-only API, no secrets to hold, and the two configurable values (`BASE_URL`, `TIMEOUT_MS`) are constants in `shared/api/httpClient.ts`. `react-native-config` once a Sentry DSN or a local-dev GitHub token exists; a bundled token is extractable from the IPA/APK, so that road ends at OAuth or a backend proxy, not at `.env` (§18) |
-| **Auth / private repos** | Non-goal. Would also raise the rate limit from 60 to 5,000/hour                                                                                                                                                                                                                                                                                                                                   |
-| **E2E & native tests**   | Maestro/Detox and JUnit/XCTest are future work; the time box went to unit/hook/component coverage instead                                                                                                                                                                                                                                                                                         |
+| Not built                 | Status                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Theme picker**          | Tokens, light/dark and the whole theming layer are built and follow the system setting; the persisted `system \| light \| dark` override isn't wired (§9)                                                                                                                                                                                                                                         |
+| **Deep linking**          | Route params are already IDs-only and serializable, so the screen is deep-link-_ready_; the `linking` config isn't registered (§6.1)                                                                                                                                                                                                                                                              |
+| **i18n / RTL**            | Planned via `i18next` + `react-i18next`, RTL through `I18nManager`. §18 names the exact work: 6 physical style properties (in three style hooks) to convert to logical `end`/`paddingEnd`/`marginEnd`, inline strings to extract, and locale-aware replacements for the two hand-written formatters                                                                                               |
+| **ETag requests**         | `If-None-Match` with cached ETags — GitHub `304`s don't count against the rate limit. The highest-value next step for this app (§18)                                                                                                                                                                                                                                                              |
+| **`.env` config**         | No env layer today, deliberately — one unauthenticated read-only API, no secrets to hold, and the two configurable values (`BASE_URL`, `TIMEOUT_MS`) are constants in `shared/api/httpClient.ts`. `react-native-config` once a Sentry DSN or a local-dev GitHub token exists; a bundled token is extractable from the IPA/APK, so that road ends at OAuth or a backend proxy, not at `.env` (§18) |
+| **Auth / private repos**  | Non-goal. Would also raise the rate limit from 60 to 5,000/hour                                                                                                                                                                                                                                                                                                                                   |
+| **E2E & native tests**    | Maestro/Detox and JUnit/XCTest are future work; the time box went to unit/hook/component coverage instead                                                                                                                                                                                                                                                                                         |
+| **Full CI/CD (Fastlane)** | Today's CI is lint/typecheck/test only — it never produces a signed native build. Fastlane-driven signing, versioning and TestFlight/Play Store internal-track delivery from GitHub Actions is the remaining step from green checks to an installable build (§18)                                                                                                                                 |
 
 ---
 
-## 10. Process
+## 10. Runtime DevTools
+
+**Decision.** [Rozenite](https://www.rozenite.dev/) adds a TanStack Query panel
+(`@rozenite/tanstack-query-plugin`) and a Zustand panel (`rozenite-zustand-devtools`) directly into
+React Native's own built-in DevTools — no Flipper, no extra app screen.
+
+**Why.** Both panels show the exact two state systems this app's architecture is built around
+(§1) — the server cache and the client stores — live, with zero app code written for the purpose
+beyond registering what to show. Both hooks are verified, in their own shipped code rather than
+just their docs, to no-op at app runtime once `NODE_ENV === 'production'`.
+
+**↻ changed mid-build, a second time.** `metro.config.js` first passed an explicit
+`enabled: process.env.NODE_ENV !== 'production'` to `@rozenite/metro`'s `withRozenite`, reasoning
+that an explicit choice beats trusting a library default that its own console output says is going
+away. Code review found this exactly backwards: Metro's CLI loads `metro.config.js` — evaluating
+that expression — _before_ it sets `NODE_ENV` for a release bundle (confirmed by reading
+`@react-native/community-cli-plugin`'s `buildBundle.js`: `loadMetroConfig` runs first,
+`process.env.NODE_ENV = ...` only afterward), so the expression always read a stale, not-yet-set
+`NODE_ENV` and evaluated to "on" for a release build — the opposite of its intent. The library's
+own default, which this explicit value had also silently bypassed, instead inspects the actual
+invoking command (confirmed by reading `@rozenite/metro`'s own source: it checks for the
+`bundle`/`export` CLI subcommand, including the exact path Xcode/Gradle invoke for a release build)
+and already does this correctly. Reverted to passing no `enabled` option at all — the harmless
+one-time console warning this version prints as a result was accepted rather than worked around with
+a less-correct replacement condition.
+
+**↻ changed mid-build.** Zustand support took two attempts. The first wired zustand's own
+`devtools` middleware to Rozenite's `@rozenite/redux-devtools-plugin` by hand: zustand's middleware
+only looks for a browser-extension global (`window.__REDUX_DEVTOOLS_EXTENSION__`) that Rozenite
+doesn't provide, but the plugin exposes a standard Redux `StoreEnhancer` instead, so a throwaway
+Redux store built through that enhancer — with a reducer that always reads the zustand store's
+current state — bridged the two using only the enhancer's own documented, stable contract. It
+worked for one store. A second store connected in the same running app never appeared in the
+panel's instance list, even after confirming (by reading the plugin's actual runtime code) that
+each store gets a unique `instanceId` and is registered correctly — a real limitation surfaced only
+by testing two stores live, not by reading source. `rozenite-zustand-devtools` is purpose-built for
+exactly this (an array of `{ name, store }` entries, no enhancer, no `redux` dependency at all) and
+was confirmed live with both stores streaming correctly, each showing real state (down to a
+genuinely offline `network` store mid-test). The hand-rolled bridge and the `redux`/
+`@rozenite/redux-devtools-plugin` dependencies it needed were removed entirely rather than kept
+alongside the replacement.
+
+**Trade-off.** Three more devtools packages in the dependency tree (gated out of production), and
+`useFavoritesStore`/`useNetworkStore` are now exported from their feature's `index.ts` purely for
+this registration — feature code itself keeps using the narrower selector hooks
+(`useIsFavorite`, `useNetworkStatus`, …), so the architecture's own rule (§1: subscribe with
+selectors) isn't bent, just given one additional, clearly-commented reader.
+
+---
+
+## 11. Process
 
 **One milestone = one step doc + one branch + one PR.** Each `docs/steps/NN-*.md` is written and
 approved _before_ any code: goal, files, public APIs, the full test list, out-of-scope, risks, and
 deviations from DESIGN.md. Conventional commits; CI runs lint + typecheck + tests on every PR.
 
-**Every step ships its tests** — 330 tests across 64 suites, next to the code, covering success,
+**Every step ships its tests** — 338 tests across 64 suites, next to the code, covering success,
 loading, error and empty paths. No test was ever skipped, weakened or deleted to make checks pass,
 and no lint rule was disabled for it.
 
@@ -435,7 +486,7 @@ after the plan and before any push. What that caught, and what it missed, is wri
 
 ---
 
-## 11. What I'd do next
+## 12. What I'd do next
 
 1. **ETag conditional requests** — biggest win available; `304`s are free against the rate limit.
 2. **`eslint-plugin-boundaries`** — make the architecture rules fail CI instead of relying on review.

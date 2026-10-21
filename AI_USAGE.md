@@ -53,9 +53,10 @@ in the same branch.
 | 09  | UI polish               | Sonnet 5    | 6 fixed                          |   330 |
 | 10  | Docs                    | Opus 5      | — (no code diff to review)       |   330 |
 | —   | Network resume fix      | Opus 5      | 6 fixed, 2 rejected              |   336 |
+| —   | DevTools (Rozenite)     | Opus 5      | 10 fixed                         |   338 |
 
-**~101 review findings fixed, 5 rejected on technical grounds, 2 documented as known trade-offs.**
-Final state: 336 tests in 64 suites, lint and typecheck clean.
+**~111 review findings fixed, 5 rejected on technical grounds, 2 documented as known trade-offs.**
+Final state: 338 tests in 64 suites, lint and typecheck clean.
 
 ---
 
@@ -156,6 +157,34 @@ Both were caught by reading the native Swift against the JS, not by running anyt
 isn't "write more tests" — there were five. It's that tests written by the same reasoning that
 produced the bug tend to encode the same mistake, and that a confident green suite is the most
 comfortable place for a wrong assumption to hide.
+
+### A library bridge that worked for one store, not two
+
+The mirror image of the bug above: this time, careful source-reading said it should work, and only
+running the real thing said otherwise. Wiring a second devtools tool (live Zustand store
+inspection) meant bridging zustand's own `devtools` middleware — which only looks for a
+browser-extension global React Native doesn't have — to a Rozenite plugin that instead exposes a
+standard Redux `StoreEnhancer`. A throwaway Redux store built through that enhancer, with a reducer
+that always read the zustand store's live state, used only the enhancer's own documented, stable
+contract — verified by reading the plugin's actual shipped code (not its README), which confirmed
+each connected store gets a genuinely unique `instanceId` in an internal registry. Every reason to
+expect it would scale to more than one store. It worked perfectly for the first store connected.
+The second, in the same running app, never appeared in the panel's instance list — a real
+limitation (or bug) in that plugin's current handling of multiple simultaneous connections, visible
+only once two stores were actually running live side by side, not from anything in its source.
+
+Rather than keep debugging an undocumented edge of someone else's plugin, the fix was a different
+library entirely: a second package existed, purpose-built for inspecting multiple Zustand stores
+specifically, that needed no enhancer, no bridge-building, and no extra dependency at all — found
+only because the user, watching the first approach fail live, asked whether a dedicated package
+existed, which hadn't come up in the research that led to the first approach. Swapped in, verified
+live with both stores streaming real state simultaneously, and the entire hand-rolled bridge (plus
+the dependency it needed) was deleted outright rather than kept as a fallback.
+
+Two lessons, read together with the entry above: source-reading and live testing catch different
+classes of wrong assumption, and neither substitutes for the other. The other lesson is narrower
+but worth stating plainly — "is there already a purpose-built tool for this" is worth asking before
+"how do I bridge two general-purpose ones," and here it took a second pair of eyes to ask it.
 
 ### Other recurring failure modes
 
