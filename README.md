@@ -46,6 +46,12 @@ genuinely depends on, tests shipped with every milestone, and transparent use of
 > retry) rather than a generic failure — but you can hit it while exploring. Caching, a 5-minute
 > `staleTime` and the persisted cache all exist partly to spend that budget carefully.
 
+## Screenshots
+
+| Explore                                                                                | Repo details                                                         | Favorites                                                               | Settings → Device                                                                                                  |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| ![Explore screen, showing a searched org's repositories](docs/screenshots/explore.png) | ![Repo details screen, favorited](docs/screenshots/repo-details.png) | ![Favorites screen, four starred repos](docs/screenshots/favorites.png) | ![Settings screen, live device and network info from the DeviceNetwork TurboModule](docs/screenshots/settings.png) |
+
 ## Setup
 
 ```sh
