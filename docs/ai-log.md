@@ -578,3 +578,67 @@ queryClient.ts`, swapping `AppProviders`' `QueryClientProvider` for `PersistQuer
   the directional style props) before writing it down caught all three; worth treating "verify, don't
   transcribe" as the default for any future doc pass, since nothing in lint/typecheck/tests can fail
   on a confidently wrong sentence.
+
+## Fix — `DeviceNetwork` resume handling (2026-10-21)
+
+Not a numbered milestone: a standalone fix made while milestone 10 was under review, merged before
+it (PR #11).
+
+- Model(s): implementer Claude Opus 5 (Claude Code), reviewer code-reviewer (opus)
+- Reported by me: on the iOS Simulator the offline→online transition didn't update the app — the
+  "You're offline" banner stayed until I reloaded. I asked whether that was acceptable or needed
+  handling.
+- AI generated: the `AppState` resume handling in `useDeviceNetworkMonitoring` (monitor recreation
+  plus re-read), the `eventCount` guard replacing the one-shot `receivedEvent` flag, 6 new tests,
+  and the `docs/DESIGN.md` §10.3 rewrite.
+- Diagnosis worth keeping: two separate things were conflated. `NWPathMonitor` is genuinely
+  unreliable in the iOS Simulator and nothing in app code fixes that. But it exposed a real gap —
+  state was seeded exactly once per mount, so _any_ missed event left the store and `onlineManager`
+  stale until a remount, which is why reloading appeared to fix it.
+- Changed / rejected by me: chose monitor recreation over the two alternatives offered (keep the
+  re-read and document the iOS limitation; or add a native `refreshNetworkState()` method), gated to
+  real background→active returns. Declined a follow-up that would also recreate the monitor on
+  pull-to-refresh while offline — background/foreground is enough given a real device's monitor is
+  reliable. Also pushed back on whether the fix was warranted at all, which produced a more honest
+  write-up: the only _demonstrated_ failure is Simulator-specific and the device-level case remains
+  unproven.
+- Reviewer findings: fixed 6, rejected 2.
+  - **The first implementation could not have fixed the reported symptom.** It re-read
+    `getNetworkState()` on foreground, but on iOS that returns the running `NWPathMonitor`'s
+    `currentPath` — a stale monitor returns the same stale answer. Only recreating it forces a real
+    update (`start(queue:)` always delivers an initial path), which is what a JS reload was doing.
+    `startNetworkMonitoring()` alone can't, being `if monitor == nil`. The reviewer also identified
+    the platform split the first pass missed: on Android `getNetworkState()` is a live
+    `activeNetwork` query, so a re-read there genuinely would have sufficed.
+  - **None of the first 5 tests distinguished `eventCount` from the boolean it replaced** — all 334
+    passed with the counter reverted, while the fix would have been dead on any device that had seen
+    one event (the flag latches and discards every later read). Added the test that pins it, then
+    mutated the guard to confirm it fails.
+  - A read could be issued before `startNetworkMonitoring()` resolved, which on iOS reads an
+    unstarted monitor's unsatisfied default and would apply a spurious offline state at startup —
+    every read is now chained onto a resolved start.
+  - A vacuous `isOnline === true` assertion the seed had already satisfied; an untyped `AppState`
+    spy forcing a cast at every use site; DESIGN.md §10.3 overstating that a bare re-read covered
+    the Simulator.
+  - Rejected: a retry when a resume read is dropped (speculative interleaving; the reviewer concedes
+    the mirror case argues the opposite — the assumption is documented in the code instead), and a
+    monotonic read id for concurrent reads (judged benign, and chaining onto a resolved start shrinks
+    the window).
+- Found by typecheck, not review: `AppState.currentState` is nullable, which pushed the "was it
+  backgrounded" tracking onto the observed events themselves — type-safe, and it survives a
+  `background → inactive → active` sequence that the original `previousStatus` comparison would have
+  missed.
+- Validation: lint / typecheck / tests (336 tests, up from 330). **Manually verified on an iPhone 18
+  Pro simulator (iOS 27.0):** the app was left in a genuinely stuck "You're offline — showing data
+  from 11:31" state with the network restored, and a background→foreground cycle cleared the banner.
+  Confirmed the app process survived the cycle (PID unchanged at 30021) so the banner cleared from
+  the resume path and not from a restart — the distinction that makes the test meaningful, since a
+  restart would clear it either way.
+- Where AI was useful / risky: the standout is that a confidently-written fix with 5 passing tests
+  was wrong in its central mechanism, and the tests encoded the same wrong assumption the
+  implementation did — caught only by reading the Swift against the JS. This is the third instance
+  in this project of the same root pattern (#06 MMKV linkage, #08 React Query's offline pause): a
+  behavior that depends on real native or library machinery, which every mocked test sidesteps by
+  construction. It's also the first time the _manual_ verification was designed to rule out the
+  obvious false positive (checking the PID to prove a restart wasn't doing the work) rather than just
+  observing the happy outcome — worth making the default for any future device check.

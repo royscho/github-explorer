@@ -52,9 +52,10 @@ in the same branch.
 | 08  | Offline                 | Sonnet 5    | 12 fixed                         |   316 |
 | 09  | UI polish               | Sonnet 5    | 6 fixed                          |   330 |
 | 10  | Docs                    | Opus 5      | — (no code diff to review)       |   330 |
+| —   | Network resume fix      | Opus 5      | 6 fixed, 2 rejected              |   336 |
 
-**~95 review findings fixed, 3 rejected on technical grounds, 2 documented as known trade-offs.**
-Final state: 330 tests in 64 suites, lint and typecheck clean.
+**~101 review findings fixed, 5 rejected on technical grounds, 2 documented as known trade-offs.**
+Final state: 336 tests in 64 suites, lint and typecheck clean.
 
 ---
 
@@ -137,6 +138,24 @@ through the real pause/resume machinery.
 
 **The standing question this produced:** _does this path traverse the real machinery, or does it just
 assert against a hand-set mock value?_ A green suite answers nothing about the former.
+
+### A fix that could not have worked, shipped with five passing tests
+
+The clearest single example in the project, and it happened last. A stuck offline banner was traced
+to network state being seeded once per mount, and the fix re-read `getNetworkState()` when the app
+returned to the foreground. Five new tests, all green, lint and typecheck clean.
+
+Review found two things. First, the fix **could not have fixed the reported symptom**: on iOS
+`getNetworkState()` returns the running `NWPathMonitor`'s `currentPath`, so re-reading a monitor
+that had gone stale returns the identical stale answer — the monitor has to be recreated, which is
+what a JS reload was doing all along. Second, **none of the five tests distinguished the new event
+counter from the old latching boolean it replaced** — reverting that one line left every test green
+while making the fix dead on any device that had seen a single event.
+
+Both were caught by reading the native Swift against the JS, not by running anything. The lesson
+isn't "write more tests" — there were five. It's that tests written by the same reasoning that
+produced the bug tend to encode the same mistake, and that a confident green suite is the most
+comfortable place for a wrong assumption to hide.
 
 ### Other recurring failure modes
 

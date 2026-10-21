@@ -166,6 +166,31 @@ switch because validation completes asynchronously _after_ the switch — change
 `networkCallback` field was read from the method-invocation thread and written by `invalidate()`'s
 teardown thread with no guard — made `@Volatile`.
 
+### ↻ The monitor is recreated when the app resumes, not just re-read
+
+**Changed after milestone 09, from manual testing.** Network state was seeded exactly once per
+mount, so any missed `onNetworkStatusChanged` event left the store and `onlineManager` stale until
+the next remount — which is why reloading the app appeared to "fix" a stuck offline banner.
+
+The first attempt re-read `getNetworkState()` on foreground. Code review showed that **could not
+have worked on iOS**: `getNetworkState()` returns the running `NWPathMonitor`'s `currentPath`, so a
+monitor that went stale returns the same stale answer. Only a new monitor forces a real update,
+since `start(queue:)` always delivers an initial path — precisely the mechanism a JS reload relies
+on. `startNetworkMonitoring()` alone can't do it either, being idempotent by design
+(`if monitor == nil`). So a resume now does `stopNetworkMonitoring()` → `startNetworkMonitoring()` →
+re-read. On Android the re-read alone would have sufficed, since `getNetworkState()` there is a live
+`ConnectivityManager.activeNetwork` query — a real platform difference the first attempt missed.
+
+It fires only on an `'active'` that follows an observed `'background'`, since `'active'` also fires
+for transient interruptions that never suspended the app (Control Centre, the app switcher, Face
+ID). Verified on a simulator by clearing a genuinely stuck banner with a background/foreground
+cycle, with the process PID unchanged to prove it wasn't a restart doing the work.
+
+**Trade-off / honest limitation.** The only _demonstrated_ failure was in the iOS Simulator, where
+`NWPathMonitor` goes silent; the device-level case — a suspended app genuinely missing a path
+update — is plausible but unproven. And if the app is never backgrounded, a stuck state persists
+until it is, because the monitor is the only thing that would report recovery.
+
 ---
 
 ## 5. Navigation & UI
