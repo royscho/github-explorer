@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RepoDetailsScreen } from '@features/repos';
 import type { RepoDetails } from '@features/repos';
 import { FavoriteToggle } from '@features/favorites';
+import { OfflineBanner } from '@features/device';
 import { ScreenErrorBoundary } from '@shared/components';
 
 import { MainTabs } from './MainTabs';
@@ -22,6 +23,7 @@ function renderDetailsFavoriteToggle(
 function RepoDetailsScreenWithBoundary(): React.JSX.Element {
   return (
     <ScreenErrorBoundary>
+      <OfflineBanner />
       <RepoDetailsScreen renderFavoriteToggle={renderDetailsFavoriteToggle} />
     </ScreenErrorBoundary>
   );

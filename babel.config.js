@@ -9,6 +9,7 @@ module.exports = {
           '@app': './src/app',
           '@features': './src/features',
           '@shared': './src/shared',
+          '@specs': './specs',
         },
       },
     ],

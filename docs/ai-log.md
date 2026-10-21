@@ -320,3 +320,67 @@ given storage is currently unavailable.` warning from React Native DevTools.
   something this project has any standing skill or script for — worth capturing as a reusable
   debugging technique if a similar "is the native side actually linked" question comes up again in
   milestone 7's own custom native module.
+
+## 07 — Native module `DeviceNetwork` (2026-10-21)
+
+- Model(s): implementer Claude Sonnet 5 (Claude Code), reviewer code-reviewer (opus)
+- AI generated: Codegen spec (`specs/NativeDeviceNetwork.ts`), Kotlin (`DeviceNetworkModule`/
+  `DeviceNetworkPackage`) and Swift+ObjC++ (`DeviceNetwork.swift`/`.h`/`.mm`) implementations, the
+  typed JS wrapper (`features/device/native`), `networkStore` (Zustand, unpersisted — it's live
+  device state, not something to restore stale), `useNetworkStatus`/`useDeviceInfo`/
+  `useDeviceNetworkMonitoring`, `OfflineBanner`/`DeviceInfoSection`, the real `SettingsScreen`
+  (replacing the placeholder `ComingSoonScreen`), and the matching test for every file (292 tests
+  after review fixes).
+- Changed / rejected by me: approved the step plan as drafted, including the `OfflineBanner` copy
+  simplification (no "showing data from HH:MM" timestamp until milestone 8's cache persistence
+  exists) and deferring the `system | light | dark` theme-mode picker gap to whichever future step
+  claims it.
+- Reviewer findings: fixed 8, rejected 0.
+  - Android's `isConnected` was gated on `NET_CAPABILITY_VALIDATED`, which flashes "offline" for a
+    moment on every network switch because validation happens asynchronously after the switch —
+    changed to `NET_CAPABILITY_INTERNET`, which matches iOS's `.satisfied` more closely and avoids
+    the flash.
+  - `DeviceNetworkModule`'s `networkCallback` field had no concurrency guard between the method-
+    invocation thread (`start`/`stopNetworkMonitoring`) and `invalidate()`'s teardown thread — made
+    `@Volatile`.
+  - `useDeviceNetworkMonitoring` seeded state from one `getNetworkState()` call issued before
+    `startNetworkMonitoring()` had resolved — on iOS this reads an unstarted monitor's default
+    (unsatisfied) path — and the seed could land after and clobber a newer live event. Fixed to
+    subscribe before starting, start, then seed only if no event has landed yet.
+  - `OfflineBanner` had no top safe-area inset, so it rendered under the status bar/notch/Dynamic
+    Island on header-less tab screens, and no `accessibilityLiveRegion`, so a screen reader
+    wouldn't announce it appearing — added both.
+  - `DeviceInfoSection` showed the raw `connectionType` union value (e.g. `"wifi"`) instead of a
+    human-readable label, and its `InfoRow` had no accessible grouping of label + value — added a
+    `connectionTypeLabels` map and `accessible`/`accessibilityLabel` on each row.
+  - `useDeviceInfo` and `useDeviceNetworkMonitoring` swallowed native-call failures silently —
+    added `shared/logger` calls on every rejection path, with tests asserting them.
+  - `ComingSoonScreen` and its styles hook became dead code once `SettingsScreen` shipped — deleted,
+    along with their tests and barrel exports.
+  - The step doc's Public APIs section listed `useDeviceNetworkMonitoring` as feature-internal even
+    though `AppProviders` is a caller outside the feature — moved it to the exported list per
+    §3.2's import-through-`index.ts` rule.
+- Found and fixed by me, after the reviewer pass, before committing: the reviewer's own new test
+  (`useDeviceNetworkMonitoring.test.tsx`'s "stops monitoring and unsubscribes on unmount") called
+  RNTL's `unmount()` without `await` — `unmount` is `async` in this `@testing-library/react-native`
+  version (it wraps `act()` internally), the same unawaited-render gotcha milestone 3 already hit,
+  now surfacing on `unmount` instead of `render`/`renderHook`. The assertions ran before cleanup had
+  actually fired, failing that test directly, and the dangling unmount then resolved mid-flight
+  during the next test, breaking two more (`logs and does not throw when startNetworkMonitoring
+rejects` / `…when the seed getNetworkState rejects`) by interleaving with their own `act()` calls.
+  Confirmed by running the file in isolation (deterministic across reruns) and each later test alone
+  (each passed alone, failed only after the broken test ran first). Fixed by awaiting every
+  `unmount()` call in the file.
+- Validation: lint / typecheck / tests (292 tests) all pass. No manual Android/iOS on-device check
+  this review-fix pass — the implementation pass's own manual check (documented in the step doc's
+  Follow-ups: both platforms, screenshots, a real selector-crash fix) predates the
+  `NET_CAPABILITY_INTERNET`/`@Volatile` native changes above, so those two are unverified on a real
+  device/emulator as of this entry.
+- Where AI was useful / risky: the unawaited-`unmount()` bug is the same class of RNTL async-helper
+  gotcha as milestone 3's unawaited `render`/`renderHook` — worth generalizing the lesson to _every_
+  async helper this library exposes (`render`, `renderHook`, `rerender`, `unmount`), not just the
+  two already burned. Risky spot: the two native-code review fixes
+  (`NET_CAPABILITY_INTERNET`, `@Volatile`) are exactly the kind of change Jest's mocked native
+  module can't exercise at all — they compile and typecheck but have had no real connectivity-switch
+  or teardown-race test on a device since being written; worth a manual check before relying on
+  them being correct in practice.

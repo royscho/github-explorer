@@ -9,10 +9,12 @@
 /* Begin PBXBuildFile section */
 		0C80B921A6F3F58F76C31292 /* libPods-GithubExplorer.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-GithubExplorer.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		50A1A799F5CD0D3FF31C7AE3 /* DeviceNetwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDBA566D24B90399BD54C041 /* DeviceNetwork.swift */; };
 		6AF18FC67469DEF80500518D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		761780EF2CA45674006654EF /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EE2CA45674006654EF /* SceneDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		B8480B7FD2A80BE84E2CD767 /* DeviceNetwork.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5AC3FFB69B8C4E3370F2CFFC /* DeviceNetwork.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,11 +24,14 @@
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = GithubExplorer/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-GithubExplorer.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-GithubExplorer.debug.xcconfig"; path = "Target Support Files/Pods-GithubExplorer/Pods-GithubExplorer.debug.xcconfig"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-GithubExplorer.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-GithubExplorer.release.xcconfig"; path = "Target Support Files/Pods-GithubExplorer/Pods-GithubExplorer.release.xcconfig"; sourceTree = "<group>"; };
+		5AC3FFB69B8C4E3370F2CFFC /* DeviceNetwork.mm */ = {isa = PBXFileReference; includeInIndex = 1; path = DeviceNetwork.mm; sourceTree = "<group>"; };
 		5DCACB8F33CDC322A6C60F78 /* libPods-GithubExplorer.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-GithubExplorer.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = GithubExplorer/AppDelegate.swift; sourceTree = "<group>"; };
 		761780EE2CA45674006654EF /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SceneDelegate.swift; path = GithubExplorer/SceneDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = GithubExplorer/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		A0FEEC9436941C33E9571E9C /* DeviceNetwork.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = DeviceNetwork.h; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		EDBA566D24B90399BD54C041 /* DeviceNetwork.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DeviceNetwork.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -78,6 +83,7 @@
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
+				EC22E9302FA7776DCBA29424 /* DeviceNetwork */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -99,6 +105,17 @@
 				5709B34CF0A7D63546082F79 /* Pods-GithubExplorer.release.xcconfig */,
 			);
 			path = Pods;
+			sourceTree = "<group>";
+		};
+		EC22E9302FA7776DCBA29424 /* DeviceNetwork */ = {
+			isa = PBXGroup;
+			children = (
+				EDBA566D24B90399BD54C041 /* DeviceNetwork.swift */,
+				5AC3FFB69B8C4E3370F2CFFC /* DeviceNetwork.mm */,
+				A0FEEC9436941C33E9571E9C /* DeviceNetwork.h */,
+			);
+			name = DeviceNetwork;
+			path = DeviceNetwork;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -251,6 +268,8 @@
 			files = (
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
 				761780EF2CA45674006654EF /* SceneDelegate.swift in Sources */,
+				50A1A799F5CD0D3FF31C7AE3 /* DeviceNetwork.swift in Sources */,
+				B8480B7FD2A80BE84E2CD767 /* DeviceNetwork.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
