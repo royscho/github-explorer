@@ -519,3 +519,126 @@ queryClient.ts`, swapping `AppProviders`' `QueryClientProvider` for `PersistQuer
   dynamic `paddingTop`) and the fact that these values are genuinely data-dependent, not static
   design tokens, but worth re-confirming this reading holds if a future step wants to add more
   data-driven coloring.
+
+## 10 — Docs (2026-10-21)
+
+- Model(s): implementer Claude Opus 5 (Claude Code); **no reviewer agent this step** — see below.
+- AI generated: step plan (`docs/steps/10-docs.md`), `README.md` (expanded from a 28-line stub to a
+  full reviewer-facing readme: features, rate-limit caveat, setup/run/checks, architecture-at-a-glance
+  with the three-state-tools table and folder tree, the `DeviceNetwork` summary, testing notes, and an
+  explicit "Scope" section for what deliberately isn't built), `DECISIONS.md` (new — 11 sections of
+  decision/why/trade-off, with every mid-build change marked **↻ changed mid-build** and traceable to
+  a step doc), `AI_USAGE.md` (new — workflow, a per-milestone scale table, "where AI was valuable" vs
+  "where AI was risky/wrong/not enough", and a closing "what I'd tell someone doing this"), plus the
+  `docs/DESIGN.md` §18 i18n/RTL entry and the §3.2/§6.1/§9 accuracy fixes described below.
+- Changed / rejected by me: approved the step plan, then added one scope item during the gate — record
+  **planned i18n via `i18next` + `react-i18next` with RTL support** as future work. Also ruled, when
+  asked, that the theme picker and deep linking are **not in scope** and are described in DESIGN.md
+  deliberately, to show they'd been considered rather than overlooked — so they're written up as
+  conscious scope cuts (with the groundwork each already has) rather than as gaps or TODOs. After the
+  first commit, asked for **`.env` configuration** to be recorded as future work too, referring to it
+  as something already mentioned — it wasn't (grep confirmed no `.env`/`dotenv`/token mention anywhere
+  in the new docs; the repo's only "env" is RN's own `.xcode.env.local` in `.gitignore`), so I said so
+  rather than agreeing, then added it: §18 plus the `README.md`/`DECISIONS.md` scope entries, grounded
+  in the fact that `BASE_URL`/`TIMEOUT_MS` are module constants in `shared/api/httpClient.ts` and the
+  app holds no secrets at all today. Included the caveat that bounds the whole idea — a bundled token
+  is extractable from the IPA/APK, so `.env` is build-time config, not a secret store, and raising the
+  rate limit for real users ends at OAuth or a backend proxy.
+- Found while writing (no reviewer agent, so these came out of cross-checking the docs against the
+  code):
+  - **`docs/DESIGN.md` described two things in the present tense that don't exist.** §9/§3.2 said the
+    theme mode choice "is saved in `settingsStore` and survives restart" and listed a settings store;
+    there is no `settingsStore` at all and `SettingsScreen` renders only `DeviceInfoSection` (the gap
+    #07 deferred to "whichever future step claims it" — and none did). §6.1 said the Settings tab is
+    "theme picker + Device section", and described the details route as deep-linkable when no `linking`
+    config is registered anywhere. Left the design intent in place (per the ruling above) but marked
+    each as future work pointing at §18, and added both to §18's list, so the doc no longer reads as a
+    claim that they shipped.
+  - **The i18n/RTL entry was made concrete by grep rather than left aspirational**: the codebase has no
+    `I18nManager` usage and no logical style props, and exactly 6 physical direction-dependent
+    properties, all in three style hooks (`useOrgSearchInputStyles`, `useNameFilterInputStyles`,
+    `useRepoCardStyles` — the two clear buttons and the favorite toggle). Recorded in §18 with the
+    file names, since that cost is cheap to state now and grows silently otherwise.
+  - Reconciled the AI_USAGE scale table against `docs/ai-log.md` entry by entry (~95 findings fixed,
+    3 rejected on technical grounds, 2 documented as known trade-offs) rather than estimating.
+- Deviation from the `/gen-step` workflow, deliberate and recorded in the step doc: **step 6
+  (`code-reviewer` agent) was skipped.** The agent reviews a diff against `docs/DESIGN.md`/`CLAUDE.md`'s
+  _code_ rules (architecture, tests, lint) and this step has no code diff — the three documents were
+  reviewed by the user directly instead. Flagged at the gate with the option to dispatch it anyway.
+- Validation: lint / typecheck / tests (330 tests, unchanged — docs-only step, no `src/` changes) all
+  pass. No manual device run (nothing to run; no behavior changed).
+- Where AI was useful / risky: useful for condensing a 48 KB per-milestone log into an `AI_USAGE.md`
+  that keeps the specifics worth keeping (the two structurally-untestable bugs, the `watchers` alias,
+  the dehydration filter, the thrice-repeated RNTL async-helper gotcha) instead of flattening it into
+  generic "AI helped write the code" prose — and the per-milestone log existing at all is the only
+  reason that synthesis was possible rather than reconstructed from memory. Risky spot: a docs
+  milestone is exactly where an assistant is most tempted to write what the design doc _says_ instead
+  of what the code _does_ — which is how §9's theme-picker claim survived three milestones after being
+  deferred. Cross-checking each claim against the source (grep for `settingsStore`, for `linking`, for
+  the directional style props) before writing it down caught all three; worth treating "verify, don't
+  transcribe" as the default for any future doc pass, since nothing in lint/typecheck/tests can fail
+  on a confidently wrong sentence.
+
+## Fix — `DeviceNetwork` resume handling (2026-10-21)
+
+Not a numbered milestone: a standalone fix made while milestone 10 was under review, merged before
+it (PR #11).
+
+- Model(s): implementer Claude Opus 5 (Claude Code), reviewer code-reviewer (opus)
+- Reported by me: on the iOS Simulator the offline→online transition didn't update the app — the
+  "You're offline" banner stayed until I reloaded. I asked whether that was acceptable or needed
+  handling.
+- AI generated: the `AppState` resume handling in `useDeviceNetworkMonitoring` (monitor recreation
+  plus re-read), the `eventCount` guard replacing the one-shot `receivedEvent` flag, 6 new tests,
+  and the `docs/DESIGN.md` §10.3 rewrite.
+- Diagnosis worth keeping: two separate things were conflated. `NWPathMonitor` is genuinely
+  unreliable in the iOS Simulator and nothing in app code fixes that. But it exposed a real gap —
+  state was seeded exactly once per mount, so _any_ missed event left the store and `onlineManager`
+  stale until a remount, which is why reloading appeared to fix it.
+- Changed / rejected by me: chose monitor recreation over the two alternatives offered (keep the
+  re-read and document the iOS limitation; or add a native `refreshNetworkState()` method), gated to
+  real background→active returns. Declined a follow-up that would also recreate the monitor on
+  pull-to-refresh while offline — background/foreground is enough given a real device's monitor is
+  reliable. Also pushed back on whether the fix was warranted at all, which produced a more honest
+  write-up: the only _demonstrated_ failure is Simulator-specific and the device-level case remains
+  unproven.
+- Reviewer findings: fixed 6, rejected 2.
+  - **The first implementation could not have fixed the reported symptom.** It re-read
+    `getNetworkState()` on foreground, but on iOS that returns the running `NWPathMonitor`'s
+    `currentPath` — a stale monitor returns the same stale answer. Only recreating it forces a real
+    update (`start(queue:)` always delivers an initial path), which is what a JS reload was doing.
+    `startNetworkMonitoring()` alone can't, being `if monitor == nil`. The reviewer also identified
+    the platform split the first pass missed: on Android `getNetworkState()` is a live
+    `activeNetwork` query, so a re-read there genuinely would have sufficed.
+  - **None of the first 5 tests distinguished `eventCount` from the boolean it replaced** — all 334
+    passed with the counter reverted, while the fix would have been dead on any device that had seen
+    one event (the flag latches and discards every later read). Added the test that pins it, then
+    mutated the guard to confirm it fails.
+  - A read could be issued before `startNetworkMonitoring()` resolved, which on iOS reads an
+    unstarted monitor's unsatisfied default and would apply a spurious offline state at startup —
+    every read is now chained onto a resolved start.
+  - A vacuous `isOnline === true` assertion the seed had already satisfied; an untyped `AppState`
+    spy forcing a cast at every use site; DESIGN.md §10.3 overstating that a bare re-read covered
+    the Simulator.
+  - Rejected: a retry when a resume read is dropped (speculative interleaving; the reviewer concedes
+    the mirror case argues the opposite — the assumption is documented in the code instead), and a
+    monotonic read id for concurrent reads (judged benign, and chaining onto a resolved start shrinks
+    the window).
+- Found by typecheck, not review: `AppState.currentState` is nullable, which pushed the "was it
+  backgrounded" tracking onto the observed events themselves — type-safe, and it survives a
+  `background → inactive → active` sequence that the original `previousStatus` comparison would have
+  missed.
+- Validation: lint / typecheck / tests (336 tests, up from 330). **Manually verified on an iPhone 18
+  Pro simulator (iOS 27.0):** the app was left in a genuinely stuck "You're offline — showing data
+  from 11:31" state with the network restored, and a background→foreground cycle cleared the banner.
+  Confirmed the app process survived the cycle (PID unchanged at 30021) so the banner cleared from
+  the resume path and not from a restart — the distinction that makes the test meaningful, since a
+  restart would clear it either way.
+- Where AI was useful / risky: the standout is that a confidently-written fix with 5 passing tests
+  was wrong in its central mechanism, and the tests encoded the same wrong assumption the
+  implementation did — caught only by reading the Swift against the JS. This is the third instance
+  in this project of the same root pattern (#06 MMKV linkage, #08 React Query's offline pause): a
+  behavior that depends on real native or library machinery, which every mocked test sidesteps by
+  construction. It's also the first time the _manual_ verification was designed to rule out the
+  obvious false positive (checking the PID to prove a restart wasn't doing the work) rather than just
+  observing the happy outcome — worth making the default for any future device check.
