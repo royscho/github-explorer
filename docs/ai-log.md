@@ -519,3 +519,54 @@ queryClient.ts`, swapping `AppProviders`' `QueryClientProvider` for `PersistQuer
   dynamic `paddingTop`) and the fact that these values are genuinely data-dependent, not static
   design tokens, but worth re-confirming this reading holds if a future step wants to add more
   data-driven coloring.
+
+## 10 — Docs (2026-10-21)
+
+- Model(s): implementer Claude Opus 5 (Claude Code); **no reviewer agent this step** — see below.
+- AI generated: step plan (`docs/steps/10-docs.md`), `README.md` (expanded from a 28-line stub to a
+  full reviewer-facing readme: features, rate-limit caveat, setup/run/checks, architecture-at-a-glance
+  with the three-state-tools table and folder tree, the `DeviceNetwork` summary, testing notes, and an
+  explicit "Scope" section for what deliberately isn't built), `DECISIONS.md` (new — 11 sections of
+  decision/why/trade-off, with every mid-build change marked **↻ changed mid-build** and traceable to
+  a step doc), `AI_USAGE.md` (new — workflow, a per-milestone scale table, "where AI was valuable" vs
+  "where AI was risky/wrong/not enough", and a closing "what I'd tell someone doing this"), plus the
+  `docs/DESIGN.md` §18 i18n/RTL entry and the §3.2/§6.1/§9 accuracy fixes described below.
+- Changed / rejected by me: approved the step plan, then added one scope item during the gate — record
+  **planned i18n via `i18next` + `react-i18next` with RTL support** as future work. Also ruled, when
+  asked, that the theme picker and deep linking are **not in scope** and are described in DESIGN.md
+  deliberately, to show they'd been considered rather than overlooked — so they're written up as
+  conscious scope cuts (with the groundwork each already has) rather than as gaps or TODOs.
+- Found while writing (no reviewer agent, so these came out of cross-checking the docs against the
+  code):
+  - **`docs/DESIGN.md` described two things in the present tense that don't exist.** §9/§3.2 said the
+    theme mode choice "is saved in `settingsStore` and survives restart" and listed a settings store;
+    there is no `settingsStore` at all and `SettingsScreen` renders only `DeviceInfoSection` (the gap
+    #07 deferred to "whichever future step claims it" — and none did). §6.1 said the Settings tab is
+    "theme picker + Device section", and described the details route as deep-linkable when no `linking`
+    config is registered anywhere. Left the design intent in place (per the ruling above) but marked
+    each as future work pointing at §18, and added both to §18's list, so the doc no longer reads as a
+    claim that they shipped.
+  - **The i18n/RTL entry was made concrete by grep rather than left aspirational**: the codebase has no
+    `I18nManager` usage and no logical style props, and exactly 6 physical direction-dependent
+    properties, all in three style hooks (`useOrgSearchInputStyles`, `useNameFilterInputStyles`,
+    `useRepoCardStyles` — the two clear buttons and the favorite toggle). Recorded in §18 with the
+    file names, since that cost is cheap to state now and grows silently otherwise.
+  - Reconciled the AI_USAGE scale table against `docs/ai-log.md` entry by entry (~95 findings fixed,
+    3 rejected on technical grounds, 2 documented as known trade-offs) rather than estimating.
+- Deviation from the `/gen-step` workflow, deliberate and recorded in the step doc: **step 6
+  (`code-reviewer` agent) was skipped.** The agent reviews a diff against `docs/DESIGN.md`/`CLAUDE.md`'s
+  _code_ rules (architecture, tests, lint) and this step has no code diff — the three documents were
+  reviewed by the user directly instead. Flagged at the gate with the option to dispatch it anyway.
+- Validation: lint / typecheck / tests (330 tests, unchanged — docs-only step, no `src/` changes) all
+  pass. No manual device run (nothing to run; no behavior changed).
+- Where AI was useful / risky: useful for condensing a 48 KB per-milestone log into an `AI_USAGE.md`
+  that keeps the specifics worth keeping (the two structurally-untestable bugs, the `watchers` alias,
+  the dehydration filter, the thrice-repeated RNTL async-helper gotcha) instead of flattening it into
+  generic "AI helped write the code" prose — and the per-milestone log existing at all is the only
+  reason that synthesis was possible rather than reconstructed from memory. Risky spot: a docs
+  milestone is exactly where an assistant is most tempted to write what the design doc _says_ instead
+  of what the code _does_ — which is how §9's theme-picker claim survived three milestones after being
+  deferred. Cross-checking each claim against the source (grep for `settingsStore`, for `linking`, for
+  the directional style props) before writing it down caught all three; worth treating "verify, don't
+  transcribe" as the default for any future doc pass, since nothing in lint/typecheck/tests can fail
+  on a confidently wrong sentence.

@@ -55,7 +55,7 @@ The user types a GitHub organization (`facebook`, `vercel`, …), browses its re
 - `src/features/repos/` — `api/` (endpoints, DTOs, mappers, query keys), `hooks/` (`useOrgRepos`, `useRepoDetails`, `useRepoFilter`), `components/` (RepoCard, RepoStats, OrgSearchInput, RepoFilterInput, RepoCardSkeleton), `screens/` (Explore, RepoDetails), `types.ts`, `index.ts`.
 - `src/features/favorites/` — Zustand+MMKV store, `useIsFavorite` / `useToggleFavorite`, FavoriteButton, FavoritesScreen.
 - `src/features/device/` — `native/` (typed TurboModule wrapper), network store, `useNetworkStatus` / `useDeviceInfo`, OfflineBanner, DeviceInfoSection.
-- `src/features/settings/` — settings store (theme mode), SettingsScreen.
+- `src/features/settings/` — settings store (theme mode — future work, §18), SettingsScreen.
 - `src/shared/` — `api/` (httpClient, typed errors, rate limit), `storage/` (MMKV instance, Zustand adapter, Query persister), `components/` (Screen, Text, Icon, Card, ErrorView, EmptyView, LoadingView, ListFooterLoader, ErrorBoundary), `hooks/`, `utils/` (date, number and `Link`-header helpers), `theme/` (tokens, provider, `makeStyles`), `logger/`.
 - `specs/NativeDeviceNetwork.ts` — Codegen spec; Kotlin implementation under `android/…/devicenetwork/`, Swift (+ ObjC++ glue) under `ios/DeviceNetwork/`.
 
@@ -117,11 +117,11 @@ A `queryKeys.ts` factory keeps keys consistent and easy to invalidate: one root 
 
 ### 6.1 Structure (React Navigation v7)
 
-A native-stack root holds **MainTabs** (bottom tabs: _Explore_ — org search, repo list, name filter; _Favorites_ — saved repos, works offline; _Settings_ — theme picker + Device section) plus the **RepoDetails** screen pushed over the tabs.
+A native-stack root holds **MainTabs** (bottom tabs: _Explore_ — org search, repo list, name filter; _Favorites_ — saved repos, works offline; _Settings_ — theme picker + Device section) plus the **RepoDetails** screen pushed over the tabs. (The Settings tab ships the Device section; the theme picker is future work — §18.)
 
 - **One `RepoDetails` route**, registered once in the root stack, reachable from Explore, Favorites and a deep link.
 - It's a **regular pushed screen with back** (header button, iOS swipe-back, Android back), not a modal: drill-down content, not a separate task. The tabs stay mounted underneath, so going back returns to the same list and scroll position.
-- Params are IDs only (`{ owner, repo }`) — serializable and deep-linkable (`githubexplorer://repo/:owner/:repo`), fully typed via `RootStackParamList`.
+- Params are IDs only (`{ owner, repo }`) — serializable and deep-linkable (`githubexplorer://repo/:owner/:repo`), fully typed via `RootStackParamList`. The params are deep-link-ready; registering the `linking` config is future work (§18).
 - The screen uses the cached list item as `placeholderData` so the header renders instantly, then fills in watchers, license, default branch, etc. Details are **prefetched on press-in** of a card.
 
 ### 6.2 Screen states
@@ -167,7 +167,7 @@ Both inputs are designed to avoid unnecessary API calls:
 ## 9. Theming & styling
 
 - Light and dark token sets in `shared/theme`: colors, spacing, typography, radii, elevation (card shadow/`elevation` per theme, exposed via the shared `Card` component).
-- Theme mode `system | light | dark`, default `system` (`useColorScheme`); the choice is saved in `settingsStore` and survives restart. The same theme drives `NavigationContainer` (headers, tab bar) and `StatusBar`.
+- Theme mode `system | light | dark`, default `system` (`useColorScheme`); the choice is saved in `settingsStore` and survives restart. The same theme drives `NavigationContainer` (headers, tab bar) and `StatusBar`. **Built so far:** the token sets, the provider and system-setting following; the persisted user override (`settingsStore` + the Settings control) is future work (§18).
 - **Styles are declared with `makeStyles(theme => …)` and consumed via `useStyles()`.** `makeStyles` calls `StyleSheet.create` **once per theme** and caches it at module level, so every instance of a component (all list cards) shares one style object and styles rebuild only when the theme changes — cheaper than a `useMemo` per instance, and components stay free of theme plumbing. No inline style objects, no hard-coded colors.
 - **No UI kit.** Only what navigation requires (`react-native-screens`, `react-native-safe-area-context`), FlashList and `@react-native-vector-icons/ionicons` (TurboModule-based, built for the New Architecture); components are hand-built in `shared/components`.
 - **Dates & numbers:** `Intl.DateTimeFormat` for absolute dates. Hermes supports `Intl` only partly (`RelativeTimeFormat` and compact notation are unreliable), so `formatRelativeTime` ("3 days ago") and `formatCompactNumber` ("12.3k") are small hand-written, unit-tested helpers. No moment (deprecated, heavy); date-fns is the fallback if needs grow.
@@ -315,7 +315,10 @@ Native unit tests (JUnit/XCTest) and E2E (Maestro/Detox) are future work.
 - **ESLint-enforced feature boundaries** (`eslint-plugin-boundaries`).
 - **Recent org searches** as quick chips; **server-side search** for very large orgs (§7).
 - **E2E tests** (Maestro/Detox), **native unit tests** (JUnit/XCTest) and native builds in CI.
-- **Sentry wiring**, i18n, sort options, optional GitHub sign-in to raise the rate limit.
+- **i18n with RTL support** — `i18next` + `react-i18next` as the localization layer (framework-agnostic core, with the interpolation and pluralization the hand-written formatters would move onto), and RTL via React Native's `I18nManager`, which flips layout direction natively once a right-to-left locale is active. The conversion cost today is small and bounded, which is worth recording before it grows: there is no `I18nManager` usage and no logical style properties yet, and exactly **6 physical direction-dependent properties**, all in three style hooks — `useOrgSearchInputStyles` (`paddingRight`, `right` — clear button), `useNameFilterInputStyles` (`paddingRight`, `right` — clear button) and `useRepoCardStyles` (`marginRight`, `right` — favorite toggle). An RTL pass converts those to `paddingEnd` / `marginEnd` / `end`, which RN flips automatically; every other directional style is already direction-neutral (`textAlign: 'center'`, `gap`, symmetric padding). The same pass extracts the user-facing string literals currently inline in components, and replaces the two English-only hand-written formatters (`formatRelativeTime`, `formatCompactNumber`, §9) with locale-aware equivalents — the point at which date-fns likely earns its place.
+- **Theme-mode picker** — the token sets, light/dark theming and `useColorScheme` following of the system setting are all built (§9); what's missing is the persisted `system | light | dark` user override (`settingsStore` + the Settings control). Deliberately left out of the time box.
+- **Deep linking** — `githubexplorer://repo/:owner/:repo` (§6.1). The groundwork is in place: `RepoDetails` is registered once in the root stack and takes IDs-only, serializable params, so the screen is deep-link-ready; registering the `linking` config is the remaining work.
+- **Sentry wiring**, sort options, optional GitHub sign-in to raise the rate limit.
 
 ---
 
