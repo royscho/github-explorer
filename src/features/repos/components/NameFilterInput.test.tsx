@@ -52,4 +52,21 @@ describe('NameFilterInput', () => {
     await userEvent.press(clearButton);
     expect(onChangeText).toHaveBeenCalledWith('');
   });
+
+  // DESIGN §14: 44pt minimum touch target, made up of the 18pt icon plus 18 + 8 of slop.
+  // Asserted as a whole object rather than as arithmetic: `right` is capped at the 8pt gap to the
+  // wrapper's edge because slop never extends past the parent's bounds, so a larger value here
+  // would look like a wider target while actually being clipped back to this one.
+  it('gives the clear button a 44pt-wide touch target', async () => {
+    await renderInput({ value: 'react' });
+    const clearButton = await screen.findByRole('button', {
+      name: 'Clear filter',
+    });
+    expect(clearButton.props.hitSlop).toEqual({
+      top: 8,
+      bottom: 8,
+      left: 18,
+      right: 8,
+    });
+  });
 });

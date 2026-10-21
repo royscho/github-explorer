@@ -42,7 +42,10 @@ export function OrgSearchInput({
             accessibilityLabel="Clear organization name"
             onPress={() => onChangeText('')}
             style={styles.clearButton}
-            hitSlop={8}
+            // See `NameFilterInput`'s clear button for the full reasoning: 18pt icon + 18 left + 8
+            // right = DESIGN §14's 44pt, asymmetric because slop past the parent's bounds is
+            // clipped and this button sits 8pt from that edge.
+            hitSlop={{ top: 8, bottom: 8, left: 18, right: 8 }}
           >
             <Ionicons
               name="close-circle"

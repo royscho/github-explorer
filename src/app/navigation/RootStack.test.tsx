@@ -20,10 +20,14 @@ jest.mock('./MainTabs', () => ({
   },
 }));
 
+// The stub renders `withTopInset` so the assertion below can pin it: below this screen's native
+// header the banner must not add the top inset a second time.
 jest.mock('@features/device', () => ({
-  OfflineBanner: () => {
+  OfflineBanner: ({ withTopInset }: { withTopInset?: boolean }) => {
     const { Text: RNText } = jest.requireActual('react-native');
-    return <RNText>Offline Banner Stub</RNText>;
+    return (
+      <RNText>{`Offline Banner Stub withTopInset=${withTopInset}`}</RNText>
+    );
   },
 }));
 
@@ -53,7 +57,9 @@ describe('RootStack', () => {
   it('renders RepoDetails with a header titled after the repo param', async () => {
     await renderRootStack('RepoDetails', { owner: 'facebook', repo: 'react' });
     expect(await screen.findByText('Repo Details Stub')).toBeOnTheScreen();
-    expect(screen.getByText('Offline Banner Stub')).toBeOnTheScreen();
+    expect(
+      screen.getByText('Offline Banner Stub withTopInset=false'),
+    ).toBeOnTheScreen();
     // The native-stack header's title is a native prop on `RNSScreenStackHeaderConfig`, not
     // rendered text, so there's no accessible query for it — asserted against the raw tree instead.
     expect(JSON.stringify(screen.toJSON())).toContain('"title":"react"');

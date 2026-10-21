@@ -49,7 +49,13 @@ function makeRepoDetails(overrides: Partial<RepoDetails> = {}): RepoDetails {
 }
 
 function createQueryClient(): QueryClient {
-  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  // `gcTime: Infinity` makes React Query skip `scheduleGc` entirely. The tests below seed the cache
+  // with `setQueryData`, and each `Query` built that way otherwise arms a 5-minute garbage-collection
+  // timer that nothing here unmounts or clears — Jest then reports them as open handles and warns
+  // that "a worker process has failed to exit gracefully" at the end of every run.
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
 }
 
 function createWrapper(queryClient: QueryClient) {

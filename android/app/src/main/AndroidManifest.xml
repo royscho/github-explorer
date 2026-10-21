@@ -1,6 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Required by the DeviceNetwork module: ConnectivityManager's `registerDefaultNetworkCallback`
+         and `getActiveNetwork` are both annotated `@RequiresPermission(ACCESS_NETWORK_STATE)` and
+         throw SecurityException without it. A normal (install-time) permission, so there is no
+         runtime request to make. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
       android:name=".MainApplication"

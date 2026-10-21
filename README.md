@@ -65,8 +65,14 @@ The app uses the **New Architecture** (required for the TurboModule). If you cha
 `specs/NativeDeviceNetwork.ts`, rebuild the native app so Codegen re-runs — a JS-only reload won't
 pick it up.
 
-> Development was done against the **iOS simulator**; the Android implementation is complete
-> (Kotlin `ConnectivityManager`/`NetworkCallback`) and compiles, but has had less on-device time.
+> Development was done against the **iOS simulator**. The Android build has since been run on an
+> emulator (Pixel 9, API 37) with the native network path exercised end to end — toggling the
+> emulator's connectivity drives `NetworkCallback.onLost` through to the offline banner. That run is
+> also what surfaced a missing `ACCESS_NETWORK_STATE` permission: `registerDefaultNetworkCallback`
+> and `getActiveNetwork` both require it, so both of the module's network methods
+> (`startNetworkMonitoring`, `getNetworkState`) would have thrown `SecurityException` on Android. It's declared now, and the Kotlin module rejects its promises
+> rather than throwing if it ever goes missing again. The rest of the app's flows (search →
+> details → favorites across a restart) still have more simulator time on iOS than on Android.
 
 ### DevTools
 
