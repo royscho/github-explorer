@@ -44,6 +44,7 @@ export function RepoDetailsScreen({
     isPlaceholderData,
     isRefetching,
     refetch,
+    isPaused,
   } = useRepoDetails(owner, repo);
 
   const openRepositoryUrl = useCallback(() => {
@@ -56,6 +57,14 @@ export function RepoDetailsScreen({
   }, [repoDetails]);
 
   function renderContent(): React.JSX.Element {
+    // §11: opening a repo with no cached list item to use as placeholder data pauses (rather than
+    // fails) while offline — an endless skeleton would otherwise never resolve into anything.
+    if (status === 'pending' && !repoDetails && isPaused) {
+      return (
+        <ErrorView message="You're offline — this will load once you're back online" />
+      );
+    }
+
     if (status === 'pending' && !repoDetails) {
       return <RepoDetailsSkeleton />;
     }

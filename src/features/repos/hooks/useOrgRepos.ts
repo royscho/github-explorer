@@ -19,6 +19,12 @@ export interface UseOrgReposResult {
   refetch: () => void;
   isRefetching: boolean;
   isRefetchError: boolean;
+  // React Query *pauses* rather than fails a fetch while offline (§11/§10.3's `onlineManager`
+  // wiring) — a first search for an org with nothing cached yet would otherwise sit in
+  // `status: 'pending'` forever with no error to show. `true` only while there's nothing to show
+  // for it yet (`status === 'pending'`); a paused *background* refetch over already-loaded repos
+  // is exactly the "keep showing the last successful data" case §11 wants, not an error state.
+  isPaused: boolean;
 }
 
 function toGitHubApiError(error: unknown): GitHubApiError | null {
@@ -67,5 +73,6 @@ export function useOrgRepos(org: string): UseOrgReposResult {
     refetch,
     isRefetching: query.isRefetching,
     isRefetchError: query.isRefetchError,
+    isPaused: query.status === 'pending' && query.fetchStatus === 'paused',
   };
 }

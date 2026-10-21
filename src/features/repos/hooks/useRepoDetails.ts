@@ -20,6 +20,10 @@ export interface UseRepoDetailsResult {
   isPlaceholderData: boolean;
   isRefetching: boolean;
   refetch: () => void;
+  // See `useOrgRepos`'s `isPaused` — same reasoning: a first open of a repo with no cached list
+  // item to use as placeholder data would otherwise sit in `status: 'pending'` forever while
+  // offline, with nothing to show.
+  isPaused: boolean;
 }
 
 function toGitHubApiError(error: unknown): GitHubApiError | null {
@@ -92,5 +96,6 @@ export function useRepoDetails(
     // spinner on top of the screen's own placeholder UI.
     isRefetching: query.isRefetching && !query.isPlaceholderData,
     refetch,
+    isPaused: query.status === 'pending' && query.fetchStatus === 'paused',
   };
 }

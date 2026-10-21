@@ -112,6 +112,7 @@ function mockResult(overrides: Partial<UseOrgReposResult>): UseOrgReposResult {
     refetch: jest.fn(),
     isRefetching: false,
     isRefetchError: false,
+    isPaused: false,
     ...overrides,
   };
 }
@@ -163,6 +164,22 @@ describe('ExploreScreen', () => {
     expect(
       await screen.findByRole('progressbar', { name: 'Loading repositories' }),
     ).toBeOnTheScreen();
+  });
+
+  // §11: a first, uncached search pauses (rather than fails) while offline — this must not show
+  // an endless loading skeleton that never resolves into anything.
+  it('shows an offline message instead of an endless skeleton for a first search while offline', async () => {
+    useOrgRepos.mockReturnValue(
+      mockResult({ status: 'pending', isPaused: true }),
+    );
+    await renderScreen();
+    await submitOrg('facebook');
+    expect(
+      await screen.findByText(
+        "You're offline — search will run once you're back online",
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.queryByRole('progressbar')).toBeNull();
   });
 
   it('shows the repo list on success', async () => {

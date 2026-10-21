@@ -1,6 +1,5 @@
+import { formatTime } from './formatTime';
+
 export function formatResetTime(resetAt: Date): string {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(resetAt);
+  return formatTime(resetAt);
 }
