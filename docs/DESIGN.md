@@ -285,6 +285,7 @@ Native unit tests (JUnit/XCTest) and E2E (Maestro/Detox) are future work.
 | 7   | Native module           | Codegen spec, Kotlin + Swift, events, OfflineBanner, Settings → Device                               |
 | 8   | Offline                 | Persisted query cache, offline UX                                                                    |
 | 9   | Docs                    | `README.md`, `DECISIONS.md`, `AI_USAGE.md`                                                           |
+| 10  | UI polish               | Card elevation, language pill, icon stats, Settings → Device as grouped cards                        |
 
 ---
 
