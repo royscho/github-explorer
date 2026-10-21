@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 
 import { ErrorBoundary } from '@shared/components';
 import { ThemeProvider } from '@shared/theme';
+import { useDeviceNetworkMonitoring } from '@features/device';
 
 import { createQueryClient } from './queryClient';
 
@@ -15,6 +16,7 @@ export function AppProviders({
   children,
 }: AppProvidersProps): React.JSX.Element {
   const [queryClient] = useState(createQueryClient);
+  useDeviceNetworkMonitoring();
 
   return (
     <SafeAreaProvider>

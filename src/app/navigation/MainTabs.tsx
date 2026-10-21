@@ -3,11 +3,13 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import type { TextStyle } from 'react-native';
 
-import { ComingSoonScreen, ScreenErrorBoundary } from '@shared/components';
+import { ScreenErrorBoundary } from '@shared/components';
 import { useTheme } from '@shared/theme';
 import { ExploreScreen } from '@features/repos';
 import type { Repo } from '@features/repos';
 import { FavoriteToggle, FavoritesScreen } from '@features/favorites';
+import { OfflineBanner } from '@features/device';
+import { SettingsScreen } from '@features/settings';
 import { useMainTabsStyles } from '@app/hooks';
 
 import type { MainTabParamList } from './types';
@@ -24,6 +26,7 @@ function renderCardFavoriteToggle(repo: Repo): React.JSX.Element {
 function ExploreScreenWithBoundary(): React.JSX.Element {
   return (
     <ScreenErrorBoundary>
+      <OfflineBanner />
       <ExploreScreen renderFavoriteToggle={renderCardFavoriteToggle} />
     </ScreenErrorBoundary>
   );
@@ -32,13 +35,19 @@ function ExploreScreenWithBoundary(): React.JSX.Element {
 function FavoritesScreenWithBoundary(): React.JSX.Element {
   return (
     <ScreenErrorBoundary>
+      <OfflineBanner />
       <FavoritesScreen renderFavoriteToggle={renderCardFavoriteToggle} />
     </ScreenErrorBoundary>
   );
 }
 
-function SettingsPlaceholder(): React.JSX.Element {
-  return <ComingSoonScreen title="Settings" />;
+function SettingsScreenWithBoundary(): React.JSX.Element {
+  return (
+    <ScreenErrorBoundary>
+      <OfflineBanner />
+      <SettingsScreen />
+    </ScreenErrorBoundary>
+  );
 }
 
 interface TabIconProps {
@@ -83,7 +92,7 @@ export function MainTabs(): React.JSX.Element {
       />
       <Tab.Screen
         name="Settings"
-        component={SettingsPlaceholder}
+        component={SettingsScreenWithBoundary}
         options={{ tabBarIcon: SettingsTabIcon }}
       />
     </Tab.Navigator>

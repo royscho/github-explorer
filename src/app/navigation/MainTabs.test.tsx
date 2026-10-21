@@ -20,6 +20,20 @@ jest.mock('@features/favorites', () => ({
   },
 }));
 
+jest.mock('@features/settings', () => ({
+  SettingsScreen: () => {
+    const { Text: RNText } = jest.requireActual('react-native');
+    return <RNText>Settings Stub</RNText>;
+  },
+}));
+
+jest.mock('@features/device', () => ({
+  OfflineBanner: () => {
+    const { Text: RNText } = jest.requireActual('react-native');
+    return <RNText>Offline Banner Stub</RNText>;
+  },
+}));
+
 function renderMainTabs() {
   return render(
     <ThemeProvider>
@@ -42,9 +56,10 @@ describe('MainTabs', () => {
     expect(screen.getByRole('button', { name: /^Settings/ })).toBeOnTheScreen();
   });
 
-  it('shows the Explore screen by default', async () => {
+  it('shows the Explore screen and the offline banner by default', async () => {
     await renderMainTabs();
     expect(await screen.findByText('Explore Stub')).toBeOnTheScreen();
+    expect(screen.getByText('Offline Banner Stub')).toBeOnTheScreen();
   });
 
   it('switches to the Favorites screen when its tab is pressed', async () => {
@@ -53,17 +68,17 @@ describe('MainTabs', () => {
       await screen.findByRole('button', { name: /^Favorites/ }),
     );
     expect(await screen.findByText('Favorites Stub')).toBeOnTheScreen();
+    expect(screen.getByText('Offline Banner Stub')).toBeOnTheScreen();
     expect(screen.queryByText('Explore Stub')).toBeNull();
   });
 
-  it('switches to the Settings placeholder when its tab is pressed', async () => {
+  it('switches to the Settings screen when its tab is pressed', async () => {
     await renderMainTabs();
     await userEvent.press(
       await screen.findByRole('button', { name: /^Settings/ }),
     );
-    expect(
-      await screen.findByText('Coming in a later milestone.'),
-    ).toBeOnTheScreen();
+    expect(await screen.findByText('Settings Stub')).toBeOnTheScreen();
+    expect(screen.getByText('Offline Banner Stub')).toBeOnTheScreen();
     expect(screen.queryByText('Explore Stub')).toBeNull();
   });
 });
